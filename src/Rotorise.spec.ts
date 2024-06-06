@@ -192,7 +192,7 @@ describe('DynamoDB Utils', () => {
             {
                 PK: ['a', 'b', 'c'],
                 SK: 'b', // raw numeric key is only allowed for sorting propuse where other mechanism is not available (arbitrary precision numbers), either way it should use a regular composite key.
-            },
+            } as const,
             '-',
         )
 
@@ -277,6 +277,21 @@ describe('DynamoDB Utils', () => {
         >
 
         expect(key).toBe('A-a1-B-1')
+
+        const keyDefaults = testTableEntry.key(
+            'PK',
+            {
+                a: 'a1',
+                b: 1,
+            },
+        )
+
+        type test_buildCompositeKeyDefaults = isTrue<
+            Equal<typeof keyDefaults, 'A-a1-B-1-C-true'>
+        >
+
+        expect(keyDefaults).toBe('A-a1-B-1-C-true')
+
 
         // infer should be accesible at runtime
         expect(testTableEntry.path().PK.length).toBeDefined()

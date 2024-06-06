@@ -41,6 +41,30 @@ export type CompositeKeyParams<
           >
         : never
     : never
+     type IsLiteral<a> =  
+     [a] extends [null | undefined]
+    ? true
+    : [a] extends [string]
+    ? string extends a
+      ? false
+      : true
+    : [a] extends [number]
+    ? number extends a
+      ? false
+      : true
+    : [a] extends [boolean]
+    ? boolean extends a
+      ? false
+      : true
+    : [a] extends [symbol]
+    ? symbol extends a
+      ? false
+      : true
+    : [a] extends [bigint]
+    ? bigint extends a
+      ? false
+      : true
+    : false;
 
 export type CompositeKeyBuilder<
     Entity extends Record<string, unknown>,
@@ -51,9 +75,9 @@ export type CompositeKeyBuilder<
 > = Entity extends unknown
     ? CompositeKeyBuilderImpl<
           Entity,
-          SliceFromStart<Spec, Deep>
+          IsLiteral<Deep> extends true ? SliceFromStart<Spec, Deep> : Spec
       > extends infer Values extends joinablePair[]
-        ? Join<isPartial extends false ? Values : Slices<Values>, Delimiter>
+        ? Join<isPartial & IsLiteral<isPartial> extends false ? Values : Slices<Values>, Delimiter>
         : never
     : never
 
