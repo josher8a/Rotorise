@@ -1,8 +1,8 @@
 {
   "name": "rotorise",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Supercharge your DynamoDB with Rotorise!",
-  "main": "src/rotorise.bs.js",
+  "main": "dist/Rotorise.js",
   "keywords": [
     "AWS",
     "Dynamodb",

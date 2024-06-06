@@ -1,11 +1,17 @@
 /node_modules
-/lib
+/src
 /examples
 /.devcontainer
 
 *.spec.ts
-*.test.js
+*.spec.js
+*.spec.d.ts
+*.spec.d.ts.map
+*.spec.js.map
+
+/src/**/*.ts
 
 tsconfig.json
 tsconfig.test.json
 jest.config.js
+tsconfig.tsbuildinfo
