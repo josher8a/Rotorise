@@ -1,58 +1,24 @@
-import type { Equal, isTrue } from './typeUtils'
 import {
     type CompositeKeyBuilder,
     type CompositeKeyParams,
-    type Slices,
     tableEntry,
-    type keysWithNumericValue,
 } from './Rotorise'
 
+type Equal<T, U> = (<G>() => G extends T ? 1 : 2) extends <G>() => G extends U
+    ? 1
+    : 2
+    ? true
+    : false
+type isTrue<T extends true> = T
+
 describe('DynamoDB Utils', () => {
-    it('Slices', async () => {
-        type test_Slices =
-            | isTrue<
-                  Equal<
-                      Slices<[1, 2, 3, 4]>,
-                      [] | [1] | [1, 2] | [1, 2, 3] | [1, 2, 3, 4]
-                  >
-              >
-            | isTrue<
-                  Equal<
-                      Slices<[1, 2, 3, 4], 0>, // skip 0
-                      [] | [1] | [1, 2] | [1, 2, 3] | [1, 2, 3, 4]
-                  >
-              >
-            | isTrue<
-                  Equal<
-                      Slices<[1, 2, 3, 4], 1>, // skip 1
-                      [1] | [1, 2] | [1, 2, 3] | [1, 2, 3, 4]
-                  >
-              >
-            | isTrue<
-                  Equal<
-                      Slices<[1, 2, 3, 4], 2>, // skip 2
-                      [1, 2] | [1, 2, 3] | [1, 2, 3, 4]
-                  >
-              >
-            | isTrue<
-                  Equal<
-                      Slices<[1, 2, 3, 4], 4>, // skip 4
-                      [1, 2, 3, 4]
-                  >
-              >
-            | isTrue<
-                  Equal<
-                      | Slices<[1, 2, 3, 4], 5>
-                      | Slices<[1, 2, 3, 4], 6>
-                      | Slices<[1, 2, 3, 4], 69>
-                      | Slices<[1, 2, 3, 4], -1>
-                      | Slices<[1, 2, 3, 4], -420>, // skip 5 or out of bounds
-                      never
-                  >
-              >
-    })
 
     it('CompositeKeyParams', () => {
+        type t = CompositeKeyParams<
+        { a: string; b: number; c: boolean },
+        ['a', 'b', 'c'], number
+    >
+
         type test_CompositeKeyParams =
             | isTrue<
                   Equal<
@@ -172,18 +138,6 @@ describe('DynamoDB Utils', () => {
               >
     })
 
-    test('keysWithNumericValue', () => {
-        type expect = isTrue<
-            Equal<
-                keysWithNumericValue<
-                    | { a: 'a1'; b: 1; c: true; z: 'never' }
-                    | { a: 'a2'; b: 2; c: 0; z: 'never' }
-                >,
-                'b'
-            >
-        >
-    })
-
     it('tableEntry', () => {
         type Entity =
             | { a: 'a1'; b: 1; c: true; z: 'never' }
@@ -229,6 +183,7 @@ describe('DynamoDB Utils', () => {
                 {
                     a: 'a1',
                     b: 1,
+                    c: true,
                 },
                 {
                     depth: 2,
@@ -245,6 +200,15 @@ describe('DynamoDB Utils', () => {
         } satisfies Entity
 
         const testTableEntryObj = testTableEntry.toEntry(entity)
+
+        testTableEntry.toEntry({
+            a: 'a1',
+            b: 1,
+            c: true,
+            z: 'never',
+            // @ts-expect-error
+            nonexistent: 'nonexistent',
+        })
 
         expect(testTableEntryObj).toEqual({
             ...entity,
@@ -278,20 +242,17 @@ describe('DynamoDB Utils', () => {
 
         expect(key).toBe('A-a1-B-1')
 
-        const keyDefaults = testTableEntry.key(
-            'PK',
-            {
-                a: 'a1',
-                b: 1,
-            },
-        )
+        const keyDefaults = testTableEntry.key('PK', {
+            a: 'a1',
+            b: 1,
+            c: true,
+        })
 
         type test_buildCompositeKeyDefaults = isTrue<
             Equal<typeof keyDefaults, 'A-a1-B-1-C-true'>
         >
 
         expect(keyDefaults).toBe('A-a1-B-1-C-true')
-
 
         // infer should be accesible at runtime
         expect(testTableEntry.path().PK.length).toBeDefined()

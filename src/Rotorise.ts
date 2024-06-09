@@ -1,13 +1,70 @@
-import type {
-    DistributiveOmit,
-    DistributivePick,
-    Pretty,
-    SliceFromStart,
-    ValueOf,
-} from './typeUtils'
-import type { Exact } from 'type-fest'
+type KeysOfUnion<ObjectType> = ObjectType extends unknown
+    ? keyof ObjectType
+    : never
+type IsEqual<T, U> = (<G>() => G extends T ? 1 : 2) extends <G>() => G extends U
+    ? 1
+    : 2
+    ? true
+    : false
 
-export type Slices<
+type ArrayElement<T> = T extends readonly unknown[] ? T[0] : never
+
+type ExactObject<ParameterType, InputType> = {
+    [Key in keyof ParameterType]: Exact<
+        ParameterType[Key],
+        Key extends keyof InputType ? InputType[Key] : never
+    >
+} & Record<Exclude<keyof InputType, KeysOfUnion<ParameterType>>, never>
+
+type Exact<ParameterType, InputType> = IsEqual<
+    ParameterType,
+    InputType
+> extends true
+    ? ParameterType
+    : // Convert union of array to array of union: A[] & B[] => (A & B)[]
+      ParameterType extends unknown[]
+      ? Array<Exact<ArrayElement<ParameterType>, ArrayElement<InputType>>>
+      : // In TypeScript, Array is a subtype of ReadonlyArray, so always test Array before ReadonlyArray.
+        ParameterType extends readonly unknown[]
+        ? ReadonlyArray<
+              Exact<ArrayElement<ParameterType>, ArrayElement<InputType>>
+          >
+        : ParameterType extends object
+          ? ExactObject<ParameterType, InputType>
+          : ParameterType
+
+type ValueOf<
+    ObjectType,
+    ValueType extends keyof ObjectType = keyof ObjectType,
+> = ObjectType[ValueType]
+
+type evaluate<T> = T extends unknown
+    ? { [K in keyof T]: T[K] } & unknown
+    : never
+
+type SliceFromStart<
+    T extends unknown[],
+    End extends number,
+    Target extends unknown[] = [],
+> = T['length'] | End extends 0
+    ? []
+    : Target['length'] extends End
+      ? Target
+      : T extends [infer A, ...infer R]
+        ? SliceFromStart<R, End, [...Target, A]>
+        : never
+
+type DistributivePick<T, K> = T extends unknown
+    ? K extends keyof T
+        ? Pick<T, K>
+        : never
+    : never
+
+type DistributiveOmit<T, K extends keyof T> = T extends unknown
+    ? Omit<T, K>
+    : never
+
+type Slices<
     rest extends unknown[],
     minLength extends number = 0,
     slice extends unknown[] = [],
@@ -27,10 +84,13 @@ export type CompositeKeyParams<
     Entity extends Record<string, unknown>,
     Spec extends InputSpec<Entity>[],
     skip extends number = 1,
-    P extends InputSpec<Entity>[] = Slices<Spec, skip>,
+    P extends InputSpec<Entity>[] = Slices<
+        Spec,
+        IsLiteral<skip> extends true ? skip : 1
+    >,
 > = Entity extends unknown
     ? P extends unknown
-        ? Pretty<
+        ? evaluate<
               {
                   [K in extractHeadOrPass<P[number]> & string]: Entity[K]
               } & {
@@ -41,30 +101,29 @@ export type CompositeKeyParams<
           >
         : never
     : never
-     type IsLiteral<a> =  
-     [a] extends [null | undefined]
+type IsLiteral<a> = [a] extends [null | undefined]
     ? true
     : [a] extends [string]
-    ? string extends a
-      ? false
-      : true
-    : [a] extends [number]
-    ? number extends a
-      ? false
-      : true
-    : [a] extends [boolean]
-    ? boolean extends a
-      ? false
-      : true
-    : [a] extends [symbol]
-    ? symbol extends a
-      ? false
-      : true
-    : [a] extends [bigint]
-    ? bigint extends a
-      ? false
-      : true
-    : false;
+      ? string extends a
+          ? false
+          : true
+      : [a] extends [number]
+        ? number extends a
+            ? false
+            : true
+        : [a] extends [boolean]
+          ? boolean extends a
+              ? false
+              : true
+          : [a] extends [symbol]
+            ? symbol extends a
+                ? false
+                : true
+            : [a] extends [bigint]
+              ? bigint extends a
+                  ? false
+                  : true
+              : false
 
 export type CompositeKeyBuilder<
     Entity extends Record<string, unknown>,
@@ -77,14 +136,19 @@ export type CompositeKeyBuilder<
           Entity,
           IsLiteral<Deep> extends true ? SliceFromStart<Spec, Deep> : Spec
       > extends infer Values extends joinablePair[]
-        ? Join<isPartial & IsLiteral<isPartial> extends false ? Values : Slices<Values>, Delimiter>
+        ? Join<
+              isPartial & IsLiteral<isPartial> extends false
+                  ? Values
+                  : Slices<Values>,
+              Delimiter
+          >
         : never
     : never
 
 type joinable = string | number | bigint | boolean | null | undefined
 type joinablePair = [joinable, joinable]
 
-export type Join<
+type Join<
     Pairs extends joinablePair[],
     Delimiter extends string,
 > = Pairs extends [joinablePair]
@@ -121,26 +185,54 @@ type CompositeKeyBuilderImpl<
     : Pairs
 
 export type TableEntry<
-    Schema extends Record<string, InputSpec<Entity>[] | keyof Entity>,
     Entity extends Record<string, unknown>,
+    Schema extends Record<string, FullKeySpec<Entity>>,
     Delimiter extends string = '#',
 > = Entity extends unknown
     ? Entity & {
-          [K in keyof Schema]: Schema[K] extends InputSpec<Entity>[]
+          [K in keyof Schema]: Schema[K] extends unknown[]
               ? CompositeKeyBuilder<Entity, Schema[K], Delimiter>
               : Entity[Schema[K] & keyof Entity]
       }
     : never
 
-export type InterfaceWithInjection<I, D> = {
-    [K in keyof I]: (dep: D) => I[K]
-}
+type Unionize<T extends object> = {
+    [k in keyof T]: { k: k; v: T[k] }
+}[keyof T]
+type KVPair = { k: PropertyKey; v: unknown }
 
-export const chainableNoOpProxy: unknown = new Proxy(() => chainableNoOpProxy, {
+type InputSpec<
+    Entity extends Record<string, unknown>,
+    KV extends KVPair = Unionize<Entity>,
+> = evaluate<
+    {
+        [key in keyof Entity]:
+            | [key, (key: Extract<KV, { k: key }>['v']) => unknown]
+            | key
+    }[keyof Entity]
+>
+
+type extractHeadOrPass<T> = T extends unknown[] ? T[0] : T
+
+type keysWithNumericValue<
+    Entity extends object,
+    KVs extends KVPair = Unionize<Entity>,
+    K_wNumber extends PropertyKey = Extract<KVs, { v: number }>['k'],
+    K_woNumber extends PropertyKey = Exclude<
+        KVs,
+        { k: K_wNumber; v: number }
+    >['k'],
+> = Exclude<K_wNumber, K_woNumber>
+
+type FullKeySpec<Entity extends Record<string, unknown>> =
+    | InputSpec<Entity>[]
+    | (keysWithNumericValue<Entity> & keyof Entity)
+
+const chainableNoOpProxy: unknown = new Proxy(() => chainableNoOpProxy, {
     get: () => chainableNoOpProxy,
 })
 
-export const createPathProxy = <T>(path = ''): T => {
+const createPathProxy = <T>(path = ''): T => {
     return new Proxy(() => {}, {
         get: (target, prop, receiver) => {
             if (typeof prop === 'string') {
@@ -160,39 +252,6 @@ export const createPathProxy = <T>(path = ''): T => {
     }) as T
 }
 
-type Unionize<T extends object> = {
-    [k in keyof T]: { k: k; v: T[k] }
-}[keyof T]
-type KVPair = { k: PropertyKey; v: unknown }
-
-type InputSpec<
-    Entity extends Record<string, unknown>,
-    KV extends KVPair = Unionize<Entity>,
-> = Pretty<
-    {
-        [key in keyof Entity]:
-            | [key, (key: Extract<KV, { k: key }>['v']) => unknown]
-            | key
-    }[keyof Entity]
->
-
-type extractHeadOrPass<T extends [PropertyKey, unknown] | PropertyKey> =
-    T extends [infer Head, ...infer _] ? Head : T
-
-export type keysWithNumericValue<
-    Entity extends object,
-    KVs extends KVPair = Unionize<Entity>,
-    K_wNumber extends PropertyKey = Extract<KVs, { v: number }>['k'],
-    K_woNumber extends PropertyKey = Exclude<
-        KVs,
-        { k: K_wNumber; v: number }
-    >['k'],
-> = Exclude<K_wNumber, K_woNumber>
-
-type FullKeySpec<Entity extends Record<string, unknown>> =
-    | InputSpec<Entity>[]
-    | (keysWithNumericValue<Entity> & keyof Entity)
-
 const key =
     <const Entity extends Record<string, unknown>>() =>
     <
@@ -207,27 +266,25 @@ const key =
         const Config extends Schema[Key] extends unknown[]
             ? { depth?: number; allowPartial?: boolean }
             : never,
-        const Attributes extends Schema[Key] extends keyof Entity
-            ? DistributivePick<Entity, Schema[Key] & keyof Entity>
-            : Config['allowPartial'] extends true
-              ? CompositeKeyParams<Entity, Schema[Key]>
-              : DistributivePick<
-                    Entity,
-                    extractHeadOrPass<
-                        Pretty<
-                            SliceFromStart<
-                                Schema[Key],
-                                Exclude<Config['depth'], undefined>
-                            >[number]
-                        >
-                    >
-                >,
+        const Attributes extends Exact<
+            Schema[Key] extends keyof Entity
+                ? DistributivePick<Entity, Schema[Key] & keyof Entity>
+                : CompositeKeyParams<
+                      Entity,
+                      Schema[Key],
+                      Config['allowPartial'] extends true
+                          ? 1
+                          : Schema[Key]['length']
+                  >,
+            Attributes
+        >,
     >(
         key: Key,
         attributes: Attributes,
         config?: Config,
-    ): Schema[Key] extends InputSpec<Entity>[]
-        ? CompositeKeyBuilder<
+    ): Schema[Key] extends keyof Entity
+        ? ValueOf<Attributes>
+        : CompositeKeyBuilder<
               Entity & Attributes,
               Schema[Key] extends FullKeySpec<Entity & Attributes>
                   ? Schema[Key]
@@ -235,11 +292,10 @@ const key =
               Separator,
               Exclude<Config['depth'], undefined>,
               Exclude<Config['allowPartial'], undefined>
-          >
-        : ValueOf<typeof attributes> => {
-        let structure = schema[key] ?? ([] as InputSpec<Entity>[])
+          > => {
+        let structure = schema[key] ?? []
         if (!Array.isArray(structure)) {
-            return attributes[structure as keyof typeof attributes] as never
+            return attributes[structure as keyof Attributes] as never
         }
 
         if (config?.depth !== undefined) {
@@ -251,7 +307,7 @@ const key =
             const [key, transform] = Array.isArray(keySpec)
                 ? keySpec
                 : [keySpec]
-            const value = attributes[key as keyof typeof attributes]
+            const value = attributes[key as keyof Attributes]
             if (value !== undefined && value !== null && value !== '') {
                 composite.push(key.toString().toUpperCase())
                 composite.push(
@@ -261,7 +317,7 @@ const key =
                 break
             } else {
                 throw new Error(
-                    `buildCompositeKey: Attribute ${key.toString()} not found in ${attributes}`,
+                    `buildCompositeKey: Attribute ${key.toString()} not found in ${JSON.stringify(attributes)}`,
                 )
             }
         }
@@ -282,7 +338,7 @@ const toEntry =
         item: ExactEntity,
     ): ExactEntity extends infer E extends Entity
         ? Schema extends Record<string, FullKeySpec<E>>
-            ? TableEntry<Schema, E, Separator>
+            ? TableEntry<E, Schema, Separator>
             : never
         : never => {
         const entry = { ...item }
@@ -304,9 +360,8 @@ const fromEntry =
         Separator extends string = '#',
     >(
         schema: Schema,
-        separator: Separator = '#' as Separator,
     ) =>
-    <const Entry extends TableEntry<Schema, Entity, Separator>>(
+    <const Entry extends TableEntry<Entity, Schema, Separator>>(
         entry: Entry,
     ): DistributiveOmit<Entry, keyof Schema> => {
         const item = { ...entry }
@@ -318,9 +373,7 @@ const fromEntry =
         return item as never
     }
 
-
-
-    type TableEntryDefinition<
+type TableEntryDefinition<
     Entity extends Record<string, unknown>,
     Schema extends Record<string, FullKeySpec<Entity>>,
     Separator extends string = '#',
@@ -329,10 +382,10 @@ const fromEntry =
         item: ExactEntity,
     ) => ExactEntity extends infer E extends Entity
         ? Schema extends Record<string, FullKeySpec<E>>
-            ? TableEntry<Schema, E, Separator>
+            ? TableEntry<E, Schema, Separator>
             : never
         : never
-    fromEntry: <const Entry extends TableEntry<Schema, Entity, Separator>>(
+    fromEntry: <const Entry extends TableEntry<Entity, Schema, Separator>>(
         entry: Entry,
     ) => DistributiveOmit<Entry, keyof Schema>
     key: <
@@ -340,27 +393,25 @@ const fromEntry =
         const Config extends Schema[Key] extends unknown[]
             ? { depth?: number; allowPartial?: boolean }
             : never,
-        const Attributes extends Schema[Key] extends keyof Entity
-            ? DistributivePick<Entity, Schema[Key] & keyof Entity>
-            : Config['allowPartial'] extends true
-              ? CompositeKeyParams<Entity, Schema[Key]>
-              : DistributivePick<
-                    Entity,
-                    extractHeadOrPass<
-                        Pretty<
-                            SliceFromStart<
-                                Schema[Key],
-                                Exclude<Config['depth'], undefined>
-                            >[number]
-                        >
-                    >
-                >,
+        const Attributes extends Exact<
+            Schema[Key] extends keyof Entity
+                ? DistributivePick<Entity, Schema[Key] & keyof Entity>
+                : CompositeKeyParams<
+                      Entity,
+                      Schema[Key],
+                      Config['allowPartial'] extends true
+                          ? 1
+                          : Schema[Key]['length']
+                  >,
+            Attributes
+        >,
     >(
         key: Key,
         attributes: Attributes,
-        config?: Config | undefined,
-    ) => Schema[Key] extends InputSpec<Entity>[]
-        ? CompositeKeyBuilder<
+        config?: Config,
+    ) => Schema[Key] extends keyof Entity
+        ? ValueOf<Attributes>
+        : CompositeKeyBuilder<
               Entity & Attributes,
               Schema[Key] extends FullKeySpec<Entity & Attributes>
                   ? Schema[Key]
@@ -369,10 +420,9 @@ const fromEntry =
               Exclude<Config['depth'], undefined>,
               Exclude<Config['allowPartial'], undefined>
           >
-        : ValueOf<Attributes>
 
-    infer: TableEntry<Schema, Entity, Separator>
-    path: () => TableEntry<Schema, Entity, Separator>
+    infer: TableEntry<Entity, Schema, Separator>
+    path: () => TableEntry<Entity, Schema, Separator>
 }
 
 export const tableEntry =
@@ -383,13 +433,13 @@ export const tableEntry =
     >(
         schema: Schema,
         separator: Separator = '#' as Separator,
-    ) : TableEntryDefinition< Entity, Schema, Separator> =>{
+    ): TableEntryDefinition<Entity, Schema, Separator> => {
         return {
-            toEntry: toEntry<Entity>()(schema, separator) as never ,
-            fromEntry: fromEntry<Entity>()(schema, separator),
+            toEntry: toEntry<Entity>()(schema, separator) as never,
+            fromEntry: fromEntry<Entity>()(schema),
             key: key<Entity>()(schema, separator),
-            infer: chainableNoOpProxy as TableEntry<Schema, Entity, Separator>,
+            infer: chainableNoOpProxy as TableEntry<Entity, Schema, Separator>,
             path: () =>
-                createPathProxy<TableEntry<Schema, Entity, Separator>>(),
+                createPathProxy<TableEntry<Entity, Schema, Separator>>(),
         }
     }
