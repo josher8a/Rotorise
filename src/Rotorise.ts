@@ -213,14 +213,14 @@ type InputSpec<
 >
 
 type extractHeadOrPass<T> = T extends unknown[] ? T[0] : T
-
+type numeric =  number | bigint
 type keysWithNumericValue<
     Entity extends object,
     KVs extends KVPair = Unionize<Entity>,
-    K_wNumber extends PropertyKey = Extract<KVs, { v: number }>['k'],
+    K_wNumber extends PropertyKey = Extract<KVs, { v: numeric }>['k'],
     K_woNumber extends PropertyKey = Exclude<
         KVs,
-        { k: K_wNumber; v: number }
+        { k: K_wNumber; v: numeric }
     >['k'],
 > = Exclude<K_wNumber, K_woNumber>
 

@@ -325,7 +325,7 @@ describe('DynamoDB Utils', () => {
 
     test('table Entry with transform', () => {
         const base = tableEntry<
-            | { a: 'a1'; b: 1; c: true; z: 'never' }
+            | { a: 'a1'; b: 1n; c: true; z: 'never' }
             | { a: 'a2'; b: 2; c: 0; z: 'never' }
         >()
         type t = Parameters<typeof base>
@@ -342,7 +342,7 @@ describe('DynamoDB Utils', () => {
                               | 'c'
                               | 'z'
                               | ['a', (key: 'a1' | 'a2') => unknown]
-                              | ['b', (key: 1 | 2) => unknown]
+                              | ['b', (key: 1n | 2) => unknown]
                               | ['c', (key: true | 0) => unknown]
                               | ['z', (key: 'never') => unknown]
                           )[]
@@ -359,7 +359,7 @@ describe('DynamoDB Utils', () => {
                     'b',
                     ['c', (c: number | boolean) => (c ? 'VERDADERO' : 'FALSO')],
                 ],
-                SK: ['c'],
+                SK: 'b',
             },
             '-',
         )
@@ -369,7 +369,7 @@ describe('DynamoDB Utils', () => {
                 'PK',
                 {
                     a: 'a1',
-                    b: 1,
+                    b: 1n,
                     c: true,
                 },
                 {
@@ -384,5 +384,17 @@ describe('DynamoDB Utils', () => {
                 c: 0,
             }),
         ).toBe('A-a2-B-2-C-FALSO')
+
+        expect(
+            testTableEntry.key('SK', {
+                b: 2,
+            }),
+        ).toBe(2)
+
+        expect(
+            testTableEntry.key('SK', {
+                b: 1n,
+            }),
+        ).toBe(1n)
     })
 })
