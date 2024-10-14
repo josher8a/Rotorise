@@ -2,6 +2,7 @@
 /src
 /examples
 /.devcontainer
+/.vscode
 
 *.spec.ts
 *.spec.js
@@ -15,3 +16,6 @@ tsconfig.json
 tsconfig.test.json
 jest.config.js
 tsconfig.tsbuildinfo
+tsup.config.ts
+biome.json
+jest.config.mjs

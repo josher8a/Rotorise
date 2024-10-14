@@ -1,10 +1,20 @@
 {
   "name": "rotorise",
-  "version": "0.1.2",
+  "version": "0.1.4",
   "description": "Supercharge your DynamoDB with Rotorise!",
-  "main": "dist/Rotorise.js",
+  "main": "dist/Rotorise.cjs",
   "types": "dist/Rotorise.d.ts",
-  "module": "dist/Rotorise.mjs",
+  "module": "dist/Rotorise.js",
+  "exports": {
+    "import": {
+      "types": "./dist/Rotorise.d.ts",
+      "import": "./dist/Rotorise.js"
+    },
+    "require": {
+      "types": "./dist/Rotorise.d.cts",
+      "require": "./dist/Rotorise.cjs"
+    }
+  },
   "type": "module",
   "keywords": [
     "AWS",
