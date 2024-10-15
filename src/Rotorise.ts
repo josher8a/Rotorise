@@ -195,43 +195,43 @@ export type TableEntry<
               : Schema[Key] extends FullKeySpecSimple<Entity>
                 ? CompositeKeyBuilder<Entity, Schema[Key], Delimiter>
                 : Schema[Key] extends DiscriminatedSchema<Entity>
-                ? ValueOf<{
-                      [K in Schema[Key]['discriminator']]: {
-                          [V in keyof Schema[Key]['spec']]: Schema[Key]['spec'][V] extends keyof Entity
-                              ? Extract<
-                                    Entity,
-                                    {
-                                        [k in K]: V
-                                    }
-                                >[Schema[Key]['spec'][V]]
-                              : Schema[Key]['spec'][V] extends InputSpec<
-                                      Extract<
-                                          Entity,
-                                          {
-                                              [k in K]: V
-                                          }
-                                      >
-                                  >[]
-                                ? CompositeKeyBuilder<
-                                      Extract<
-                                          Entity,
-                                          {
-                                              [k in K]: V
-                                          }
-                                      >,
-                                      Schema[Key]['spec'][V],
-                                      Delimiter
-                                  >
-                                : never
-                      }[Extract<
-                          Entity ,
-                          {
-                              [k in K]: unknown
-                          }
-                      >[K] &
-                          keyof Schema[Key]['spec']]
-                  }>
-                : never
+                  ? ValueOf<{
+                        [K in Schema[Key]['discriminator']]: {
+                            [V in keyof Schema[Key]['spec']]: Schema[Key]['spec'][V] extends keyof Entity
+                                ? Extract<
+                                      Entity,
+                                      {
+                                          [k in K]: V
+                                      }
+                                  >[Schema[Key]['spec'][V]]
+                                : Schema[Key]['spec'][V] extends InputSpec<
+                                        Extract<
+                                            Entity,
+                                            {
+                                                [k in K]: V
+                                            }
+                                        >
+                                    >[]
+                                  ? CompositeKeyBuilder<
+                                        Extract<
+                                            Entity,
+                                            {
+                                                [k in K]: V
+                                            }
+                                        >,
+                                        Schema[Key]['spec'][V],
+                                        Delimiter
+                                    >
+                                  : never
+                        }[Extract<
+                            Entity,
+                            {
+                                [k in K]: unknown
+                            }
+                        >[K] &
+                            keyof Schema[Key]['spec']]
+                    }>
+                  : never
       }
     : never
 
@@ -411,8 +411,6 @@ const key =
             structure = case_.spec[
                 discriminator as keyof typeof case_.spec
             ] as never
-
-            console.dir({ structure, discriminator, case_ }, { depth: null })
         } else {
             return attributes[case_ as keyof Attributes] as never
         }
@@ -547,22 +545,26 @@ type TableEntryDefinition<
                                             >['spec'],
                                             { [k in V]: unknown }
                                         >[V] extends infer S
-                                          ? (S extends keyof E
-                                                ? DistributivePick<
-                                                      E,
-                                                      S & keyof E
-                                                  >
-                                                : S extends InputSpec<E>[]
-                                                  ? CompositeKeyParams<
-                                                        E,
-                                                        S,
-                                                        Config['allowPartial'] extends true
-                                                            ? 1
-                                                            : S['length']
-                                                    >
-                                                  : never) & {
-                                                [k in K]: V
-                                            }
+                                          ? (
+                                                S extends keyof E
+                                                    ? DistributivePick<
+                                                          E,
+                                                          S & keyof E
+                                                      >
+                                                    : S extends InputSpec<E>[]
+                                                      ? CompositeKeyParams<
+                                                            E,
+                                                            S,
+                                                            Config['allowPartial'] extends true
+                                                                ? 1
+                                                                : S['length']
+                                                        >
+                                                      : never
+                                            ) extends infer P
+                                              ? P & {
+                                                    [k in K]: V
+                                                }
+                                              : never
                                           : never
                                       : never
                               }>

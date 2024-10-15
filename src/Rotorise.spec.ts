@@ -479,28 +479,28 @@ describe('DynamoDB Utils', () => {
                 b: 1n,
             }),
         ).toBe(1n)
-const r = testTableEntry.key(
-    'GSI1SK',
-    {
-        a: 'a1',
-        b: 1n,
-        c: true,
-    },
-    {
-        depth: 2,
-    },
-)
+        const r = testTableEntry.key(
+            'GSI1SK',
+            {
+                a: 'a1',
+                b: 1n,
+                c: true,
+            },
+            {
+                depth: 2,
+            },
+        )
 
-const d = testTableEntry.key('GSI1PK', {
-    z: 'never', // required to discriminate
-    b: 1n,
-})
+        const d = testTableEntry.key('GSI1PK', {
+            z: 'never', // required to discriminate
+            b: 1n,
+        })
         expect(
             testTableEntry.key('GSI1PK', {
                 z: 'never', // required to discriminate
                 b: 1n,
             }),
-        ).toBe('B-1')
+        ).toBe(1n)
 
         expect(
             testTableEntry.key(
@@ -517,14 +517,11 @@ const d = testTableEntry.key('GSI1PK', {
         ).toBe('A-a1-B-1')
 
         expect(
-            testTableEntry.key(
-                'GSI1SK',
-                {
-                    a: 'a2',
-                    b: 2,
-                    z: 'never',
-                },
-            ),
-        ).toBe('A-a1-B-1')
+            testTableEntry.key('GSI1SK', {
+                a: 'a2',
+                b: 2,
+                z: 'never',
+            }),
+        ).toBe('A-a2-B-2-Z-never')
     })
 })
