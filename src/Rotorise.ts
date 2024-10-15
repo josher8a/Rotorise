@@ -230,7 +230,9 @@ type FullKeySpecSimple<Entity extends Record<string, unknown>> =
     | InputSpec<Entity>[]
     | (keysWithNumericValue<Entity> & keyof Entity)
 
-type entries = { a: 'a1'; b: 1n; c: true } | { a: 'a2'; b: 2; c: 0; z: 'never' }
+type entries =
+    | { a: 'a1'; b: 1n; c: true; z: '1' }
+    | { a: 'a2'; b: 2; c: 0; z: '2' }
 
 type DiscriminatedSchema<
     Entity extends Record<string, unknown>,
@@ -264,6 +266,22 @@ type FullKeySpec<Entity extends Record<string, unknown>> =
     | DiscriminatedSchema<Entity>
 
 type t = DiscriminatedSchema<entries>
+
+type R = ValueOf<{
+    [K in t['discriminator']]: evaluate<
+        ValueOf<{
+            [V in keyof Extract<t, { discriminator: K }>['spec']]: {
+                narrow: {
+                    [k in K]: V
+                }
+                spec: Extract<
+                    Extract<t, { discriminator: K }>['spec'],
+                    { [k in V]: unknown }
+                >[V]
+            }
+        }>
+    >
+}>
 
 const chainableNoOpProxy: unknown = new Proxy(() => chainableNoOpProxy, {
     get: () => chainableNoOpProxy,
@@ -357,7 +375,7 @@ const key =
                 discriminator as keyof typeof case_.spec
             ] as never
 
-            console.dir({ structure, discriminator, case_ }, {depth: null})
+            console.dir({ structure, discriminator, case_ }, { depth: null })
         } else {
             return attributes[case_ as keyof Attributes] as never
         }
@@ -472,24 +490,44 @@ type TableEntryDefinition<
                             ? 1
                             : Schema[Key]['length']
                     >
-                  : Schema[Key] extends {
-                          discriminator: infer K extends PropertyKey
-                          spec: infer S extends object
-                      }
-                    ? Unionize<S> extends {
-                          k: infer V
-                          v: infer S extends InputSpec<Entity>[]
-                      }
-                        ? CompositeKeyParams<
-                              Entity,
-                              S,
-                              Config['allowPartial'] extends true
-                                  ? 1
-                                  : S['length']
-                          > & {
-                              [k in K]: V
-                          }
-                        : never
+                  : Schema[Key] extends DiscriminatedSchema<Entity>
+                    ? ValueOf<{
+                          [K in Schema[Key]['discriminator']]: evaluate<
+                              ValueOf<{
+                                  [V in keyof Extract<
+                                      Schema[Key],
+                                      { discriminator: K }
+                                  >['spec']]: Entity & {
+                                      [k in K]: V
+                                  } extends infer E extends Record<string, unknown>
+                                      ? Extract<
+                                            Extract<
+                                                Schema[Key],
+                                                { discriminator: K }
+                                            >['spec'],
+                                            { [k in V]: unknown }
+                                        >[V] extends infer S
+                                          ? (S extends keyof E
+                                                ? DistributivePick<
+                                                      E,
+                                                      S & keyof E
+                                                  >
+                                                : S extends InputSpec<E>[]
+                                                  ? CompositeKeyParams<
+                                                        E,
+                                                        S,
+                                                        Config['allowPartial'] extends true
+                                                            ? 1
+                                                            : S['length']
+                                                    >
+                                                  : never) & {
+                                                [k in K]: V
+                                            }
+                                          : never
+                                      : never
+                              }>
+                          >
+                      }>
                     : never,
             Attributes
         >,

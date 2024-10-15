@@ -423,13 +423,13 @@ describe('DynamoDB Utils', () => {
                 GSI1PK: {
                     discriminator: 'z',
                     spec: {
-                        never: ['b'],
+                        never: 'b',
                     },
                 },
                 GSI1SK: {
                     discriminator: 'a',
                     spec: {
-                        a2: ['b'],
+                        a2: ['a', 'b', 'z'],
                         a1: [
                             'a',
                             'b',
@@ -495,6 +495,17 @@ describe('DynamoDB Utils', () => {
                 },
                 {
                     depth: 2,
+                },
+            ),
+        ).toBe('A-a1-B-1')
+
+        expect(
+            testTableEntry.key(
+                'GSI1SK',
+                {
+                    a: 'a2',
+                    b: 2,
+                    z: 'never',
                 },
             ),
         ).toBe('A-a1-B-1')
