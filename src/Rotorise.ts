@@ -496,7 +496,7 @@ type TableEntryDefinition<
     Schema extends Record<string, FullKeySpec<Entity>>,
     Separator extends string = '#',
 > = {
-    toEntry: <const ExactEntity extends Entity>(
+    toEntry: <const ExactEntity extends Exact<Entity, ExactEntity>>(
         item: ExactEntity,
     ) => ExactEntity extends infer E extends Entity
         ? Schema extends Record<string, FullKeySpec<E>>
