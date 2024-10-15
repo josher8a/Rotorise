@@ -12,12 +12,12 @@ type Equal<T, U> = (<G>() => G extends T ? 1 : 2) extends <G>() => G extends U
 type isTrue<T extends true> = T
 
 describe('DynamoDB Utils', () => {
-
     it('CompositeKeyParams', () => {
         type t = CompositeKeyParams<
-        { a: string; b: number; c: boolean },
-        ['a', 'b', 'c'], number
-    >
+            { a: string; b: number; c: boolean },
+            ['a', 'b', 'c'],
+            number
+        >
 
         type test_CompositeKeyParams =
             | isTrue<
@@ -323,12 +323,18 @@ describe('DynamoDB Utils', () => {
         expect(testTableEntry.path().PK.toString()).toBe('PK')
     })
 
-    test('table Entry with transform', () => {
+    test('table Entry with transform and discriminator ', () => {
         const base = tableEntry<
             | { a: 'a1'; b: 1n; c: true; z: 'never' }
             | { a: 'a2'; b: 2; c: 0; z: 'never' }
         >()
-        type t = Parameters<typeof base>
+        type t = Extract<
+            Parameters<typeof base>[0][string],
+            {
+                discriminator: 'a'
+            }
+        >['spec']['a1']
+
         type expect_schema = isTrue<
             Equal<
                 Parameters<typeof base>,
@@ -346,6 +352,59 @@ describe('DynamoDB Utils', () => {
                               | ['c', (key: true | 0) => unknown]
                               | ['z', (key: 'never') => unknown]
                           )[]
+                        | {
+                              discriminator: 'a'
+                              spec: {
+                                  a1:
+                                      | 'b'
+                                      | (
+                                            | 'a'
+                                            | 'b'
+                                            | 'c'
+                                            | 'z'
+                                            | ['a', (key: 'a1') => unknown]
+                                            | ['b', (key: 1n) => unknown]
+                                            | ['c', (key: true) => unknown]
+                                            | ['z', (key: 'never') => unknown]
+                                        )[]
+                                      | null
+                                  a2:
+                                      | 'b'
+                                      | 'c'
+                                      | (
+                                            | 'a'
+                                            | 'b'
+                                            | 'c'
+                                            | 'z'
+                                            | ['a', (key: 'a2') => unknown]
+                                            | ['b', (key: 2) => unknown]
+                                            | ['c', (key: 0) => unknown]
+                                            | ['z', (key: 'never') => unknown]
+                                        )[]
+                                      | null
+                              }
+                          }
+                        | {
+                              discriminator: 'z'
+                              spec: {
+                                  never:
+                                      | 'b'
+                                      | (
+                                            | 'a'
+                                            | 'b'
+                                            | 'c'
+                                            | 'z'
+                                            | [
+                                                  'a',
+                                                  (key: 'a1' | 'a2') => unknown,
+                                              ]
+                                            | ['b', (key: 2 | 1n) => unknown]
+                                            | ['c', (key: true | 0) => unknown]
+                                            | ['z', (key: 'never') => unknown]
+                                        )[]
+                                      | null
+                              }
+                          }
                     >,
                     separator?: string | undefined,
                 ]
@@ -360,6 +419,28 @@ describe('DynamoDB Utils', () => {
                     ['c', (c: number | boolean) => (c ? 'VERDADERO' : 'FALSO')],
                 ],
                 SK: 'b',
+
+                GSI1PK: {
+                    discriminator: 'z',
+                    spec: {
+                        never: ['b'],
+                    },
+                },
+                GSI1SK: {
+                    discriminator: 'a',
+                    spec: {
+                        a2: ['b'],
+                        a1: [
+                            'a',
+                            'b',
+                            [
+                                'c',
+                                (c: number | boolean) =>
+                                    c ? 'VERDADERO' : 'FALSO',
+                            ],
+                        ],
+                    },
+                },
             },
             '-',
         )
@@ -396,5 +477,26 @@ describe('DynamoDB Utils', () => {
                 b: 1n,
             }),
         ).toBe(1n)
+
+        expect(
+            testTableEntry.key('GSI1PK', {
+                z: 'never', // required to discriminate
+                b: 1n,
+            }),
+        ).toBe('B-1')
+
+        expect(
+            testTableEntry.key(
+                'GSI1SK',
+                {
+                    a: 'a1',
+                    b: 1n,
+                    c: true,
+                },
+                {
+                    depth: 2,
+                },
+            ),
+        ).toBe('A-a1-B-1')
     })
 })
