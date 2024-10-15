@@ -445,6 +445,8 @@ describe('DynamoDB Utils', () => {
             '-',
         )
 
+        testTableEntry.infer
+
         expect(
             testTableEntry.key(
                 'PK',

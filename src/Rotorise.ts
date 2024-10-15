@@ -190,10 +190,47 @@ export type TableEntry<
     Delimiter extends string = '#',
 > = Entity extends unknown
     ? Entity & {
-          [K in keyof Schema]: Schema[K] extends keyof Entity
-              ? Entity[Schema[K]]
-              : Schema[K] extends FullKeySpecSimple<Entity>
-                ? CompositeKeyBuilder<Entity, Schema[K], Delimiter>
+          [Key in keyof Schema]: Schema[Key] extends keyof Entity
+              ? Entity[Schema[Key]]
+              : Schema[Key] extends FullKeySpecSimple<Entity>
+                ? CompositeKeyBuilder<Entity, Schema[Key], Delimiter>
+                : Schema[Key] extends DiscriminatedSchema<Entity>
+                ? ValueOf<{
+                      [K in Schema[Key]['discriminator']]: {
+                          [V in keyof Schema[Key]['spec']]: Schema[Key]['spec'][V] extends keyof Entity
+                              ? Extract<
+                                    Entity,
+                                    {
+                                        [k in K]: V
+                                    }
+                                >[Schema[Key]['spec'][V]]
+                              : Schema[Key]['spec'][V] extends InputSpec<
+                                      Extract<
+                                          Entity,
+                                          {
+                                              [k in K]: V
+                                          }
+                                      >
+                                  >[]
+                                ? CompositeKeyBuilder<
+                                      Extract<
+                                          Entity,
+                                          {
+                                              [k in K]: V
+                                          }
+                                      >,
+                                      Schema[Key]['spec'][V],
+                                      Delimiter
+                                  >
+                                : never
+                      }[Extract<
+                          Entity ,
+                          {
+                              [k in K]: unknown
+                          }
+                      >[K] &
+                          keyof Schema[Key]['spec']]
+                  }>
                 : never
       }
     : never
