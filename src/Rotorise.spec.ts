@@ -429,7 +429,7 @@ describe('DynamoDB Utils', () => {
                 GSI1SK: {
                     discriminator: 'a',
                     spec: {
-                        a2: ['a', 'b', 'z'],
+                        a2: 'b',
                         a1: [
                             'a',
                             'b',
@@ -439,6 +439,14 @@ describe('DynamoDB Utils', () => {
                                     c ? 'VERDADERO' : 'FALSO',
                             ],
                         ],
+                    },
+                },
+
+                GSI2PK: {
+                    discriminator: 'a',
+                    spec: {
+                        a2: 'b',
+                        a1: null
                     },
                 },
             },
@@ -520,8 +528,22 @@ describe('DynamoDB Utils', () => {
             testTableEntry.key('GSI1SK', {
                 a: 'a2',
                 b: 2,
-                z: 'never',
+                // z: 'never',
             }),
-        ).toBe('A-a2-B-2-Z-never')
+        ).toBe(2)
+
+        expect(
+            testTableEntry.key('GSI2PK', {
+                a: 'a2',
+                b: 2,
+                // z: 'never',
+            }),
+        ).toBe(2)
+
+        expect(
+            testTableEntry.key('GSI2PK', {
+                a: 'a1',
+            }),
+        ).toBeUndefined()
     })
 })
