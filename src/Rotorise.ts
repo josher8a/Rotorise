@@ -499,7 +499,10 @@ type TableEntryDefinition<
                                       { discriminator: K }
                                   >['spec']]: Entity & {
                                       [k in K]: V
-                                  } extends infer E extends Record<string, unknown>
+                                  } extends infer E extends Record<
+                                      string,
+                                      unknown
+                                  >
                                       ? Extract<
                                             Extract<
                                                 Schema[Key],
@@ -545,21 +548,45 @@ type TableEntryDefinition<
                 Exclude<Config['depth'], undefined>,
                 Exclude<Config['allowPartial'], undefined>
             >
-          : Schema[Key] extends {
-                  discriminator: infer K extends PropertyKey
-                  spec: {
-                      [k in PropertyKey]: infer S extends InputSpec<
-                          Entity & Attributes
-                      >[]
-                  }
-              }
-            ? CompositeKeyBuilder<
-                  Entity & Attributes,
-                  S,
-                  Separator,
-                  Exclude<Config['depth'], undefined>,
-                  Exclude<Config['allowPartial'], undefined>
-              >
+          : Schema[Key] extends DiscriminatedSchema<Entity>
+            ? ValueOf<{
+                  [K in Schema[Key]['discriminator']]: {
+                      [V in keyof Schema[Key]['spec']]: Schema[Key]['spec'][V] extends keyof Entity
+                          ? Extract<
+                                Entity,
+                                {
+                                    [k in K]: V
+                                }
+                            >[Schema[Key]['spec'][V]]
+                          : Schema[Key]['spec'][V] extends InputSpec<
+                                  Extract<
+                                      Entity,
+                                      {
+                                          [k in K]: V
+                                      }
+                                  >
+                              >[]
+                            ? CompositeKeyBuilder<
+                                  Extract<
+                                      Entity,
+                                      {
+                                          [k in K]: V
+                                      }
+                                  >,
+                                  Schema[Key]['spec'][V],
+                                  Separator,
+                                  Exclude<Config['depth'], undefined>,
+                                  Exclude<Config['allowPartial'], undefined>
+                              >
+                            : never
+                  }[Extract<
+                      Entity & Attributes,
+                      {
+                          [k in K]: unknown
+                      }
+                  >[K] &
+                      keyof Schema[Key]['spec']]
+              }>
             : never
 
     infer: TableEntry<Entity, Schema, Separator>

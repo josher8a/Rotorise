@@ -477,7 +477,22 @@ describe('DynamoDB Utils', () => {
                 b: 1n,
             }),
         ).toBe(1n)
+const r = testTableEntry.key(
+    'GSI1SK',
+    {
+        a: 'a1',
+        b: 1n,
+        c: true,
+    },
+    {
+        depth: 2,
+    },
+)
 
+const d = testTableEntry.key('GSI1PK', {
+    z: 'never', // required to discriminate
+    b: 1n,
+})
         expect(
             testTableEntry.key('GSI1PK', {
                 z: 'never', // required to discriminate
