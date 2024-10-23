@@ -507,36 +507,43 @@ type TableEntryDefinition<
         entry: Entry,
     ) => DistributiveOmit<Entry, keyof Schema>
     key: <
-        const Key extends keyof Schema,
-        const Config extends Schema[Key] extends keyof Entity
+        const Key extends string,
+        const Config extends IsLiteral<Spec> extends true
             ? never
-            : { depth?: number; allowPartial?: boolean },
-        const Attributes extends Schema[Key] extends keyof Entity
-            ? DistributivePick<Entity, Schema[Key] & keyof Entity>
-            : Schema[Key] extends InputSpec<Entity>[]
+            : {
+                  depth?: number
+                  allowPartial?: boolean
+              },
+        const Attributes extends IsLiteral<Spec> extends true
+            ? DistributivePick<Entity, Spec & keyof Entity>
+            : Spec extends InputSpec<Entity>[]
               ? CompositeKeyParams<
                     Entity,
-                    Schema[Key],
-                    Config['allowPartial'] extends true
-                        ? 1
-                        : Schema[Key]['length']
+                    Spec,
+                    Config['allowPartial'] extends true ? 1 : Spec['length']
                 >
-              : Schema[Key] extends DiscriminatedSchema<Entity>
+              : Spec extends DiscriminatedSchema<Entity>
                 ? ValueOf<{
-                      [K in Schema[Key]['discriminator']]: evaluate<
+                      [K in Spec['discriminator']]: evaluate<
                           ValueOf<{
                               [V in keyof Extract<
-                                  Schema[Key],
-                                  { discriminator: K }
+                                  Spec,
+                                  {
+                                      discriminator: K
+                                  }
                               >['spec']]: Entity & {
                                   [k in K]: V
                               } extends infer E extends Record<string, unknown>
                                   ? Extract<
                                         Extract<
-                                            Schema[Key],
-                                            { discriminator: K }
+                                            Spec,
+                                            {
+                                                discriminator: K
+                                            }
                                         >['spec'],
-                                        { [k in V]: unknown }
+                                        {
+                                            [k in V]: unknown
+                                        }
                                     >[V] extends infer S
                                       ? (
                                             S extends keyof E
@@ -568,33 +575,37 @@ type TableEntryDefinition<
                       >
                   }>
                 : never,
+        NarrowEntity extends Entity = Entity & Attributes,
+        Spec extends FullKeySpec<Entity> = Key extends keyof Schema
+            ? Schema[Key]
+            : never,
     >(
-        key: Key,
+        key: Key & keyof Schema,
         attributes: Attributes,
         config?: Config,
-    ) => Schema[Key] extends keyof Entity
+    ) => Spec extends keyof Entity
         ? ValueOf<Attributes>
-        : Schema[Key] extends FullKeySpecSimple<Entity & Attributes>
+        : Spec extends FullKeySpecSimple<NarrowEntity>
           ? CompositeKeyBuilder<
-                Entity & Attributes,
-                Schema[Key],
+                NarrowEntity,
+                Spec,
                 Separator,
                 Exclude<Config['depth'], undefined>,
                 Exclude<Config['allowPartial'], undefined>
             >
-          : Schema[Key] extends DiscriminatedSchema<Entity>
+          : Spec extends DiscriminatedSchema<NarrowEntity>
             ? ValueOf<{
-                  [K in Schema[Key]['discriminator']]: {
-                      [V in keyof Schema[Key]['spec']]: Schema[Key]['spec'][V] extends keyof Entity
+                  [K in Spec['discriminator']]: {
+                      [V in keyof Spec['spec']]: Spec['spec'][V] extends keyof NarrowEntity
                           ? Extract<
-                                Entity,
+                                NarrowEntity,
                                 {
                                     [k in K]: V
                                 }
-                            >[Schema[Key]['spec'][V]]
-                          : Schema[Key]['spec'][V] extends InputSpec<
+                            >[Spec['spec'][V]]
+                          : Spec['spec'][V] extends InputSpec<
                                   Extract<
-                                      Entity,
+                                      NarrowEntity,
                                       {
                                           [k in K]: V
                                       }
@@ -602,29 +613,28 @@ type TableEntryDefinition<
                               >[]
                             ? CompositeKeyBuilder<
                                   Extract<
-                                      Entity,
+                                      NarrowEntity,
                                       {
                                           [k in K]: V
                                       }
                                   >,
-                                  Schema[Key]['spec'][V],
+                                  Spec['spec'][V],
                                   Separator,
                                   Exclude<Config['depth'], undefined>,
                                   Exclude<Config['allowPartial'], undefined>
                               >
-                            : Schema[Key]['spec'][V] extends null
+                            : Spec['spec'][V] extends null
                               ? undefined
                               : never
                   }[Extract<
-                      Entity & Attributes,
+                      NarrowEntity,
                       {
                           [k in K]: unknown
                       }
                   >[K] &
-                      keyof Schema[Key]['spec']]
+                      keyof Spec['spec']]
               }>
             : never
-
     infer: TableEntry<Entity, Schema, Separator>
     path: () => TableEntry<Entity, Schema, Separator>
 }
