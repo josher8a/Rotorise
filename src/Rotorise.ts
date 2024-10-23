@@ -96,7 +96,7 @@ export type CompositeKeyParams<
               } & {
                   [K in extractHeadOrPass<
                       Exclude<Spec[number], P[number]>
-                  >]?: undefined
+                  >]?: Entity[K & keyof Entity]
               }
           >
         : never

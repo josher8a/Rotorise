@@ -26,8 +26,8 @@ describe('DynamoDB Utils', () => {
                           { a: string; b: number; c: boolean },
                           ['a', 'b', 'c']
                       >,
-                      | { a: string; b?: undefined; c?: undefined }
-                      | { a: string; b: number; c?: undefined }
+                      | { a: string; b?: number; c?: boolean }
+                      | { a: string; b: number; c?: boolean }
                       | { a: string; b: number; c: boolean }
                   >
               >
@@ -37,8 +37,8 @@ describe('DynamoDB Utils', () => {
                           { a: string; b: number; c: boolean },
                           ['a', 'b', ['c', (c: boolean) => 'TRANSFORM']]
                       >,
-                      | { a: string; b?: undefined; c?: undefined }
-                      | { a: string; b: number; c?: undefined }
+                      | { a: string; b?: number; c?: boolean }
+                      | { a: string; b: number; c?: boolean }
                       | { a: string; b: number; c: boolean }
                   >
               >
