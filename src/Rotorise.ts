@@ -84,7 +84,7 @@ export type CompositeKeyParams<
     Entity extends Record<string, unknown>,
     Spec extends InputSpec<Entity>[],
     skip extends number = 1,
-    P extends InputSpec<Entity>[] = Slices<
+    P extends InputSpec<Entity>[] = SliceFromStart<
         Spec,
         IsLiteral<skip> extends true ? skip : 1
     >,

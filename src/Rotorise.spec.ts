@@ -15,8 +15,7 @@ describe('DynamoDB Utils', () => {
     it('CompositeKeyParams', () => {
         type t = CompositeKeyParams<
             { a: string; b: number; c: boolean },
-            ['a', 'b', 'c'],
-            number
+            ['a', 'b', 'c']
         >
 
         type test_CompositeKeyParams =
@@ -26,9 +25,7 @@ describe('DynamoDB Utils', () => {
                           { a: string; b: number; c: boolean },
                           ['a', 'b', 'c']
                       >,
-                      | { a: string; b?: number; c?: boolean }
-                      | { a: string; b: number; c?: boolean }
-                      | { a: string; b: number; c: boolean }
+                      { a: string; b?: number; c?: boolean }
                   >
               >
             | isTrue<
@@ -37,9 +34,27 @@ describe('DynamoDB Utils', () => {
                           { a: string; b: number; c: boolean },
                           ['a', 'b', ['c', (c: boolean) => 'TRANSFORM']]
                       >,
-                      | { a: string; b?: number; c?: boolean }
-                      | { a: string; b: number; c?: boolean }
-                      | { a: string; b: number; c: boolean }
+                      { a: string; b?: number; c?: boolean }
+                  >
+              >
+            | isTrue<
+                  Equal<
+                      CompositeKeyParams<
+                          { a: string; b: number; c: boolean },
+                          ['a', 'b', ['c', (c: boolean) => 'TRANSFORM']],
+                          2
+                      >,
+                      { a: string; b: number; c?: boolean }
+                  >
+              >
+            | isTrue<
+                  Equal<
+                      CompositeKeyParams<
+                          { a: string; b: number; c: boolean },
+                          ['a', 'b', ['c', (c: boolean) => 'TRANSFORM']],
+                          number
+                      >,
+                      { a: string; b?: number; c?: boolean }
                   >
               >
     })
@@ -446,7 +461,7 @@ describe('DynamoDB Utils', () => {
                     discriminator: 'a',
                     spec: {
                         a2: 'b',
-                        a1: null
+                        a1: null,
                     },
                 },
             },
