@@ -561,4 +561,190 @@ describe('DynamoDB Utils', () => {
             }),
         ).toBeUndefined()
     })
+
+    test('real world example', () => {
+        type BigRecord = {
+            [k in
+                | 'A'
+                | 'B'
+                | 'C'
+                | 'D'
+                | 'E'
+                | 'F'
+                | 'G'
+                | 'H'
+                | 'I'
+                | 'J'
+                | 'K'
+                | 'L'
+                | 'M'
+                | 'N'
+                | 'O'
+                | 'P'
+                | 'Q'
+                | 'R'
+                | 'E'
+                | 'T'
+                // | 'U'
+                // | 'V'
+                // | 'W'
+                // | 'X' // excessively deep
+                | 'Y'
+                | 'Z']: `value:${k}`
+        }
+
+        type A = {
+            id1: string
+            tag: 'A'
+            user: string
+            id2: string
+
+            type: 'TypeA'
+        } & BigRecord
+
+        type B = {
+            id1: string
+            tag: 'B'
+            user: string
+            id2: string
+            type: 'TypeB'
+        } & BigRecord
+
+        type C = {
+            id1: string
+            tag: 'C'
+            user: string
+            id2: string
+            type: 'TypeB'
+        } & BigRecord
+
+        type D = {
+            id1: string
+            tag: 'D'
+            user: string
+            deviceId: string
+            id2: string
+            type: 'TypeA'
+            kind: string
+        } & BigRecord
+
+        type RealEntry = typeof RealEntry.infer
+        const RealEntry = tableEntry<A | C | D | B>()({
+            PK: ['id1', 'user'],
+            SK: {
+                discriminator: 'tag',
+                spec: {
+                    C: ['tag', 'id2', 'type'],
+                    D: ['tag', 'id2', 'kind', 'type'],
+                    A: ['tag', 'id2', 'type'],
+                    B: ['tag', 'id2', 'type'],
+                },
+            },
+            GSI1PK: ['id2'],
+            GSI1SK: {
+                discriminator: 'tag',
+                spec: {
+                    C: ['type'],
+                    D: ['kind'],
+                    A: ['type'],
+                    B: ['type'],
+                },
+            },
+        })
+
+        let expect_infer: isTrue<
+            Equal<
+                RealEntry,
+                | (A & {
+                      readonly PK: `ID1#${string}#USER#${string}`
+                      readonly SK: `TAG#A#ID2#${string}#TYPE#TypeA`
+                      readonly GSI1PK: `ID2#${string}`
+                      readonly GSI1SK: `TYPE#TypeA`
+                  })
+                | ({
+                      readonly PK: `ID1#${string}#USER#${string}`
+                      readonly SK: `TAG#C#ID2#${string}#TYPE#TypeB`
+                      readonly GSI1PK: `ID2#${string}`
+                      readonly GSI1SK: `TYPE#TypeB`
+                  } & C)
+                | ({
+                      readonly PK: `ID1#${string}#USER#${string}`
+                      readonly SK: `TAG#D#ID2#${string}#KIND#${string}#TYPE#TypeA`
+                      readonly GSI1PK: `ID2#${string}`
+                      readonly GSI1SK: `KIND#${string}`
+                  } & D)
+                | ({
+                      readonly PK: `ID1#${string}#USER#${string}`
+                      readonly SK: `TAG#B#ID2#${string}#TYPE#TypeB`
+                      readonly GSI1PK: `ID2#${string}`
+                      readonly GSI1SK: `TYPE#TypeB`
+                  } & B)
+            >
+        >
+
+        const expect_key = RealEntry.key(
+            'PK',
+            {
+                id1: 'client',
+                user: 'user',
+            },
+            {
+                allowPartial: true,
+            },
+        ) satisfies 'ID1#client#USER#user' | 'ID1#client'
+
+        const expect_key_ = RealEntry.key(
+            'PK',
+            {
+                id1: 'client',
+                user: 'user',
+            },
+            {
+                // allowPartial: true,
+            },
+        ) satisfies 'ID1#client#USER#user'
+
+        const expect_key2 = RealEntry.key('GSI1SK', {
+            type: 'TypeA',
+            tag: 'A',
+        }) satisfies 'TYPE#TypeA'
+
+        // @ts-expect-error
+        const expect_key2_ = RealEntry.key('GSI1SK', {
+            type: 'TypeA',
+            tag: 'A',
+            // biome-ignore lint/complexity/noBannedTypes: test case
+        } as {})
+
+        const expect_key_depth = RealEntry.key(
+            'PK',
+            {
+                id1: 'client',
+                user: 'user',
+            },
+            {
+                allowPartial: true,
+                depth: 1,
+            },
+        ) satisfies 'ID1#client'
+
+        const expect_key_depth_partial_discriminator = RealEntry.key(
+            'SK',
+            { tag: 'A', id2: 'yolo' },
+            { allowPartial: true, depth: 2 },
+        ) satisfies 'TAG#A' | `TAG#A#ID2#${string}`
+
+        type expect_key_depth_partial_discriminator = isTrue<
+            Equal<
+                typeof expect_key_depth_partial_discriminator,
+                'TAG#A' | `TAG#A#ID2#yolo`
+            >
+        >
+
+        const expect_key_depth_discriminator = RealEntry.key(
+            'SK',
+            { tag: 'A', id2: 'yolo' },
+            { allowPartial: true, depth: 2 },
+        ) satisfies 'TAG#A' | 'TAG#A#ID2#yolo'
+    })
 })
