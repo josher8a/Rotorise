@@ -1,129 +1,42 @@
-type KeysOfUnion<ObjectType> = ObjectType extends unknown
-    ? keyof ObjectType
-    : never
-type IsEqual<T, U> = (<G>() => G extends T ? 1 : 2) extends <G>() => G extends U
-    ? 1
-    : 2
-    ? true
-    : false
-
-type ArrayElement<T> = T extends readonly unknown[] ? T[0] : never
-
-type ExactObject<ParameterType, InputType> = {
-    [Key in keyof ParameterType]: Exact<
-        ParameterType[Key],
-        Key extends keyof InputType ? InputType[Key] : never
-    >
-} & Record<Exclude<keyof InputType, KeysOfUnion<ParameterType>>, never>
-
-type Exact<ParameterType, InputType> = IsEqual<
-    ParameterType,
-    InputType
-> extends true
-    ? ParameterType
-    : // Convert union of array to array of union: A[] & B[] => (A & B)[]
-      ParameterType extends unknown[]
-      ? Array<Exact<ArrayElement<ParameterType>, ArrayElement<InputType>>>
-      : // In TypeScript, Array is a subtype of ReadonlyArray, so always test Array before ReadonlyArray.
-        ParameterType extends readonly unknown[]
-        ? ReadonlyArray<
-              Exact<ArrayElement<ParameterType>, ArrayElement<InputType>>
-          >
-        : ParameterType extends object
-          ? ExactObject<ParameterType, InputType>
-          : ParameterType
-
-type ValueOf<
-    ObjectType,
-    ValueType extends keyof ObjectType = keyof ObjectType,
-> = ObjectType[ValueType]
-
-export type evaluate<T> = T extends unknown
-    ? { [K in keyof T]: T[K] } & unknown
-    : never
-
-type SliceFromStart<
-    T extends unknown[],
-    End extends number,
-    Target extends unknown[] = [],
-> = T['length'] | End extends 0
-    ? []
-    : Target['length'] extends End
-      ? Target
-      : T extends [infer A, ...infer R]
-        ? SliceFromStart<R, End, [...Target, A]>
-        : never
-
-type DistributivePick<T, K> = T extends unknown
-    ? K extends keyof T
-        ? Pick<T, K>
-        : never
-    : never
-
-type DistributiveOmit<T, K extends keyof T> = T extends unknown
-    ? Omit<T, K>
-    : never
-
-type Slices<
-    rest extends unknown[],
-    minLength extends number = 0,
-    slice extends unknown[] = [],
-    passedSkip extends 1 | 0 = slice['length'] extends minLength ? 1 : 0,
-> =
-    | (passedSkip extends 1 ? slice : never)
-    | (rest extends [infer h, ...infer R]
-          ? Slices<
-                R,
-                minLength,
-                [...slice, h],
-                [...slice, h]['length'] extends minLength ? 1 : passedSkip
-            >
-          : never)
+import type {
+    DistributiveOmit,
+    DistributivePick,
+    Exact,
+    KVPair,
+    SliceFromStart,
+    Slices,
+    Unionize,
+    ValueOf,
+    evaluate,
+    evaluateUnion,
+} from './utils'
 
 export type CompositeKeyParams<
     Entity extends Record<string, unknown>,
-    Spec extends InputSpec<Entity>[],
+    FullSpec extends InputSpec<Entity>[],
     skip extends number = 1,
-    P extends InputSpec<Entity>[] = SliceFromStart<
-        Spec,
-        IsLiteral<skip> extends true ? skip : 1
-    >,
 > = Entity extends unknown
-    ? P extends unknown
-        ? evaluate<
-              {
-                  [K in extractHeadOrPass<P[number]> & string]: Entity[K]
-              } & {
-                  [K in extractHeadOrPass<
-                      Exclude<Spec[number], P[number]>
-                  >]?: Entity[K & keyof Entity]
-              }
-          >
-        : never
+    ? evaluate<
+          Required<
+              Pick<
+                  Entity,
+                  extractHeadOrPass<
+                      SliceFromStart<
+                          FullSpec,
+                          number extends skip ? 1 : skip
+                      >[number]
+                  > &
+                      keyof Entity
+              >
+          > &
+              Partial<
+                  Pick<
+                      Entity,
+                      extractHeadOrPass<FullSpec[number]> & keyof Entity
+                  >
+              >
+      >
     : never
-type IsLiteral<a> = [a] extends [null | undefined]
-    ? true
-    : [a] extends [string]
-      ? string extends a
-          ? false
-          : true
-      : [a] extends [number]
-        ? number extends a
-            ? false
-            : true
-        : [a] extends [boolean]
-          ? boolean extends a
-              ? false
-              : true
-          : [a] extends [symbol]
-            ? symbol extends a
-                ? false
-                : true
-            : [a] extends [bigint]
-              ? bigint extends a
-                  ? false
-                  : true
-              : false
 
 export type CompositeKeyBuilder<
     Entity extends Record<string, unknown>,
@@ -134,10 +47,11 @@ export type CompositeKeyBuilder<
 > = Entity extends unknown
     ? CompositeKeyBuilderImpl<
           Entity,
-          IsLiteral<Deep> extends true ? SliceFromStart<Spec, Deep> : Spec
+          number extends Deep ? Spec : SliceFromStart<Spec, Deep>
       > extends infer Values extends joinablePair[]
         ? Join<
-              isPartial & IsLiteral<isPartial> extends false
+              isPartial &
+                  (boolean extends isPartial ? false : true) extends false
                   ? Values
                   : Slices<Values>,
               Delimiter
@@ -151,36 +65,42 @@ type joinablePair = [joinable, joinable]
 type Join<
     Pairs extends joinablePair[],
     Delimiter extends string,
-> = Pairs extends [joinablePair]
-    ? `${Pairs[0][0]}${Delimiter}${Pairs[0][1]}`
-    : Pairs extends [joinablePair, ...infer Tail extends joinablePair[]]
-      ? `${Pairs[0][0]}${Delimiter}${Pairs[0][1]}${Delimiter}${Join<
-            Tail,
-            Delimiter
-        >}`
-      : never
+> = Pairs extends [
+    infer First extends joinablePair,
+    ...infer Tail extends joinablePair[],
+]
+    ? `${First[0]}${Delimiter}${First[1]}${Tail extends [] ? '' : `${Delimiter}${Join<Tail, Delimiter>}`}`
+    : never
 
 type CompositeKeyBuilderImpl<
     Entity extends Record<string, unknown>,
     Spec extends InputSpec<Entity>[],
     Pairs extends joinablePair[] = [],
-> = Spec extends [infer F, ...infer R extends InputSpec<Entity>[]]
-    ? F extends keyof Entity & string
-        ? Entity[F] extends joinable
+    KeysCache extends keyof Entity & string = keyof Entity & string,
+    InputSpecsCache extends InputSpec<Entity>[] = InputSpec<Entity>[],
+> = Spec extends [infer F, ...infer R extends InputSpecsCache]
+    ? F extends KeysCache
+        ? Entity[F] extends infer V extends joinable
             ? CompositeKeyBuilderImpl<
                   Entity,
                   R,
-                  [...Pairs, [Uppercase<F>, Entity[F]]]
+                  [...Pairs, [Uppercase<F>, V]],
+                  KeysCache,
+                  InputSpecsCache
               >
             : never
-        : F extends [keyof Entity & string, (...x: (infer _)[]) => infer Tr]
-          ? Tr extends joinable
-              ? CompositeKeyBuilderImpl<
-                    Entity,
-                    R,
-                    [...Pairs, [Uppercase<F[0]>, Tr]]
-                >
-              : never
+        : F extends [
+                infer K extends KeysCache,
+                // biome-ignore lint/suspicious/noExplicitAny: This is a type guard
+                (...args: any[]) => infer V extends joinable,
+            ]
+          ? CompositeKeyBuilderImpl<
+                Entity,
+                R,
+                [...Pairs, [Uppercase<K>, V]],
+                KeysCache,
+                InputSpecsCache
+            >
           : never
     : Pairs
 
@@ -190,66 +110,38 @@ export type TableEntry<
     Delimiter extends string = '#',
 > = Entity extends unknown
     ? Entity & {
-          [Key in keyof Schema]: Schema[Key] extends keyof Entity
-              ? Entity[Schema[Key]]
-              : Schema[Key] extends FullKeySpecSimple<Entity>
-                ? CompositeKeyBuilder<Entity, Schema[Key], Delimiter>
-                : Schema[Key] extends DiscriminatedSchema<Entity>
-                  ? ValueOf<{
-                        [K in Schema[Key]['discriminator']]: {
-                            [V in keyof Schema[Key]['spec']]: Schema[Key]['spec'][V] extends keyof Entity
-                                ? Extract<
-                                      Entity,
-                                      {
-                                          [k in K]: V
-                                      }
-                                  >[Schema[Key]['spec'][V]]
-                                : Schema[Key]['spec'][V] extends InputSpec<
-                                        Extract<
-                                            Entity,
-                                            {
-                                                [k in K]: V
-                                            }
-                                        >
-                                    >[]
+          [Key in keyof Schema]: Schema[Key] extends DiscriminatedSchema<Entity>
+              ? ValueOf<{
+                    [K in Schema[Key]['discriminator']]: {
+                        [V in keyof Schema[Key]['spec']]: Schema[Key]['spec'][V] extends infer Value
+                            ? Value extends keyof Entity
+                                ? Entity[Value]
+                                : Value extends InputSpec<Entity>[]
                                   ? CompositeKeyBuilder<
-                                        Extract<
-                                            Entity,
-                                            {
-                                                [k in K]: V
-                                            }
-                                        >,
-                                        Schema[Key]['spec'][V],
+                                        Entity,
+                                        Value,
                                         Delimiter
                                     >
                                   : never
-                        }[Extract<
-                            Entity,
-                            {
-                                [k in K]: unknown
-                            }
-                        >[K] &
-                            keyof Schema[Key]['spec']]
-                    }>
+                            : never
+                    }[Entity[K] & keyof Schema[Key]['spec']]
+                }>
+              : Schema[Key] extends keyof Entity
+                ? Entity[Schema[Key]]
+                : Schema[Key] extends FullKeySpecSimple<Entity>
+                  ? CompositeKeyBuilder<Entity, Schema[Key], Delimiter>
                   : never
       }
     : never
 
-type Unionize<T extends object> = {
-    [k in keyof T]: { k: k; v: T[k] }
-}[keyof T]
-type KVPair = { k: PropertyKey; v: unknown }
-
 type InputSpec<
     Entity extends Record<string, unknown>,
     KV extends KVPair = Unionize<Entity>,
-> = evaluate<
-    {
-        [key in keyof Entity]:
-            | [key, (key: Extract<KV, { k: key }>['v']) => unknown]
-            | key
-    }[keyof Entity]
->
+> = {
+    [key in keyof Entity]:
+        | [key, (key: Extract<KV, { k: key }>['v']) => unknown]
+        | key
+}[keyof Entity]
 
 type extractHeadOrPass<T> = T extends unknown[] ? T[0] : T
 type numeric = number | bigint
@@ -267,28 +159,21 @@ type FullKeySpecSimple<Entity extends Record<string, unknown>> =
     | InputSpec<Entity>[]
     | (keysWithNumericValue<Entity> & keyof Entity)
 
-type entries =
-    | { a: 'a1'; b: 1n; c: true; z: '1' }
-    | { a: 'a2'; b: 2; c: 0; z: '2' }
-
 type DiscriminatedSchema<
     Entity extends Record<string, unknown>,
-    KVs extends KVPair = Unionize<
-        Pick<Entity, keyof Entity> /* Pick common keys */
-    >,
-    KVs_ extends { k: PropertyKey; v: PropertyKey } = Extract<
-        KVs,
+    DiscriminatorPair extends { k: PropertyKey; v: PropertyKey } = Extract<
+        Unionize<Pick<Entity, keyof Entity> /* Pick common keys */>,
         { v: PropertyKey }
     >,
-> = KVs_ extends unknown
+> = DiscriminatorPair extends unknown
     ? {
-          discriminator: KVs_['k']
+          discriminator: DiscriminatorPair['k']
           spec: {
-              [val in KVs_['v']]: FullKeySpecSimple<
+              [val in DiscriminatorPair['v']]: FullKeySpecSimple<
                   Extract<
                       Entity,
                       {
-                          [k in KVs_['k']]: val
+                          [k in DiscriminatorPair['k']]: val
                       }
                   >
               > | null
@@ -299,24 +184,6 @@ type DiscriminatedSchema<
 type FullKeySpec<Entity extends Record<string, unknown>> =
     | FullKeySpecSimple<Entity>
     | DiscriminatedSchema<Entity>
-
-type t = DiscriminatedSchema<entries>
-
-type R = ValueOf<{
-    [K in t['discriminator']]: evaluate<
-        ValueOf<{
-            [V in keyof Extract<t, { discriminator: K }>['spec']]: {
-                narrow: {
-                    [k in K]: V
-                }
-                spec: Extract<
-                    Extract<t, { discriminator: K }>['spec'],
-                    { [k in V]: unknown }
-                >[V]
-            }
-        }>
-    >
-}>
 
 const chainableNoOpProxy: unknown = new Proxy(() => chainableNoOpProxy, {
     get: () => chainableNoOpProxy,
@@ -508,13 +375,13 @@ type TableEntryDefinition<
     ) => DistributiveOmit<Entry, keyof Schema>
     key: <
         const Key extends string,
-        const Config extends IsLiteral<Spec> extends true
+        const Config extends Spec extends string
             ? never
             : {
                   depth?: number
                   allowPartial?: boolean
               },
-        const Attributes extends IsLiteral<Spec> extends true
+        const Attributes extends Spec extends string
             ? DistributivePick<Entity, Spec & keyof Entity>
             : Spec extends InputSpec<Entity>[]
               ? CompositeKeyParams<
@@ -524,7 +391,7 @@ type TableEntryDefinition<
                 >
               : Spec extends DiscriminatedSchema<Entity>
                 ? ValueOf<{
-                      [K in Spec['discriminator']]: evaluate<
+                      [K in Spec['discriminator']]: evaluateUnion<
                           ValueOf<{
                               [V in keyof Extract<
                                   Spec,

@@ -468,7 +468,35 @@ describe('DynamoDB Utils', () => {
             '-',
         )
 
-        testTableEntry.infer
+        testTableEntry
+
+        type entries =
+            | ({
+                  a: 'a1'
+                  b: 1n
+                  c: true
+                  z: 'never'
+              } & {
+                  readonly PK: 'A-a1-B-1-C-VERDADERO' | 'A-a1-B-1-C-FALSO'
+                  readonly SK: 1n
+                  readonly GSI1PK: 1n
+                  readonly GSI1SK: 'A-a1-B-1-C-VERDADERO' | 'A-a1-B-1-C-FALSO'
+                  readonly GSI2PK: never
+              })
+            | ({
+                  a: 'a2'
+                  b: 2
+                  c: 0
+                  z: 'never'
+              } & {
+                  readonly PK: 'A-a2-B-2-C-VERDADERO' | 'A-a2-B-2-C-FALSO'
+                  readonly SK: 2
+                  readonly GSI1PK: 2
+                  readonly GSI1SK: 2
+                  readonly GSI2PK: 2
+              })
+
+        type expect_infer = isTrue<Equal<typeof testTableEntry.infer, entries>>
 
         expect(
             testTableEntry.key(
