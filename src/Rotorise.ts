@@ -109,7 +109,7 @@ export type TableEntry<
     Schema extends Record<string, FullKeySpec<Entity>>,
     Delimiter extends string = '#',
 > = Entity extends unknown
-    ? Entity & {
+    ? {
           [Key in keyof Schema]: Schema[Key] extends DiscriminatedSchema<Entity>
               ? ValueOf<{
                     [K in Schema[Key]['discriminator']]: {
@@ -131,7 +131,7 @@ export type TableEntry<
                 : Schema[Key] extends FullKeySpecSimple<Entity>
                   ? CompositeKeyBuilder<Entity, Schema[Key], Delimiter>
                   : never
-      }
+      } & Entity
     : never
 
 type InputSpec<
