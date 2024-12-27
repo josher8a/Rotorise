@@ -769,24 +769,6 @@ describe('DynamoDB Utils', () => {
             >
         >
 
-        // const expect_key_depth_partial_discriminator_undefined =
-        //     WalletEntry.key(
-        //         'SK',
-        //         {
-        //             tag: 'A',
-        //             id2: 'string',
-        //             type: undefined,
-        //         },
-        //         { allowPartial: true, depth: 2 },
-        //     ) satisfies 'TAG#A' | 'TAG#A#ID2#${string}'
-
-        // type expect_key_depth_partial_discriminator_undefined = isTrue<
-        //     Equal<
-        //         typeof expect_key_depth_partial_discriminator_undefined,
-        //         'TAG#A' | 'TAG#A#ID2#${string}'
-        //     >
-        // >
-
         const expect_key_depth_discriminator = RealEntry.key(
             'SK',
             { tag: 'A', id2: 'yolo' },
