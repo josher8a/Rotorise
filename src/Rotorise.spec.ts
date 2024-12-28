@@ -367,6 +367,7 @@ describe('DynamoDB Utils', () => {
                               | ['c', (key: true | 0) => unknown]
                               | ['z', (key: 'never') => unknown]
                           )[]
+                        | null
                         | {
                               discriminator: 'a'
                               spec: {
@@ -591,34 +592,62 @@ describe('DynamoDB Utils', () => {
     })
 
     test('real world example', () => {
+        type BigUnion =
+            | 'A'
+            | 'B'
+            | 'C'
+            | 'D'
+            | 'E'
+            | 'F'
+            | 'G'
+            | 'H'
+            | 'I'
+            | 'J'
+            | 'K'
+            | 'L'
+            | 'M'
+            | 'N'
+            | 'O'
+            | 'P'
+            | 'Q'
+            | 'R'
+            | 'E'
+            | 'T'
+            | 'U'
+            | 'V'
+            | 'W'
+            | 'X'
+            | 'Y'
+            | 'Z'
+            | 'A1'
+            | 'B1'
+            | 'C1'
+            | 'D1' // excessively deep mark
+        // | 'E1'
+        // | 'F1'
+        // | 'G1'
+        // | 'H1'
+        // | 'I1'
+        // | 'J1'
+        // | 'K1'
+        // | 'L1'
+        // | 'M1'
+        // | 'N1'
+        // | 'O1'
+        // | 'P1'
+        // | 'Q1'
+        // | 'R1'
+        // | 'E1'
+        // | 'T1'
+        // | 'U1'
+        // | 'V1'
+        // | 'W1'
+        // | 'X1'
+        // | 'Y1'
+        // | 'Z1'
+
         type BigRecord = {
-            [k in
-                | 'A'
-                | 'B'
-                | 'C'
-                | 'D'
-                | 'E'
-                | 'F'
-                | 'G'
-                | 'H'
-                | 'I'
-                | 'J'
-                | 'K'
-                | 'L'
-                | 'M'
-                | 'N'
-                | 'O'
-                | 'P'
-                | 'Q'
-                | 'R'
-                | 'E'
-                | 'T'
-                // | 'U'
-                // | 'V'
-                // | 'W'
-                // | 'X' // excessively deep
-                | 'Y'
-                | 'Z']: `value:${k}`
+            [k in BigUnion]: `value:${k}`
         }
 
         type A = {
@@ -772,7 +801,7 @@ describe('DynamoDB Utils', () => {
         const expect_key_depth_discriminator = RealEntry.key(
             'SK',
             { tag: 'A', id2: 'yolo' },
-            { allowPartial: true, depth: 2 },
-        ) satisfies 'TAG#A' | 'TAG#A#ID2#yolo'
+            { depth: 2 },
+        ) satisfies 'TAG#A#ID2#yolo'
     })
 })
