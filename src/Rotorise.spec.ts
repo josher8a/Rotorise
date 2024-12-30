@@ -59,6 +59,8 @@ describe('DynamoDB Utils', () => {
                       { a: string; b?: number; c?: boolean }
                   >
               >
+
+        attest.instantiations([2748, 'instantiations'])
     })
 
     it('CompositeKeyBuilder', () => {
@@ -153,6 +155,8 @@ describe('DynamoDB Utils', () => {
                       | 'A#a2#B#2#C#TRANSFORM'
                   >
               >
+
+        attest.instantiations([4239, 'instantiations'])
     })
 
     it('tableEntry', () => {
@@ -304,6 +308,8 @@ describe('DynamoDB Utils', () => {
                 { allowPartial: true },
             ),
         ).toBe(1)
+
+        attest.instantiations([43064, 'instantiations'])
     })
 
     test('path from infer then toString', () => {
