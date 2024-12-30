@@ -3,6 +3,8 @@ import {
     type CompositeKeyParams,
     tableEntry,
 } from './Rotorise'
+import { expect, test, describe, it } from 'vitest'
+import { attest } from '@ark/attest'
 
 type Equal<T, U> = (<G>() => G extends T ? 1 : 2) extends <G>() => G extends U
     ? 1
@@ -190,7 +192,7 @@ describe('DynamoDB Utils', () => {
                   readonly SK: 2
               })
 
-        type expect_infer = isTrue<Equal<typeof testTableEntry.infer, entries>>
+        attest<entries>(testTableEntry.infer)
 
         expect(
             testTableEntry.key(
@@ -803,5 +805,7 @@ describe('DynamoDB Utils', () => {
             { tag: 'A', id2: 'yolo' },
             { depth: 2 },
         ) satisfies 'TAG#A#ID2#yolo'
+
+        attest.instantiations([2882730, 'instantiations'])
     })
 })
