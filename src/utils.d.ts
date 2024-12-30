@@ -82,10 +82,6 @@ export type Slices<
         : never
     : Acc | (Reached extends true ? Slice : never)
 
-export type Unionize<T extends object> = {
-    [k in keyof T]: { k: k; v: T[k] }
-}[keyof T]
-export type KVPair = { k: PropertyKey; v: unknown }
 /**
  * Intersect two types, if one of them is never, return the other one.
  */
@@ -94,3 +90,7 @@ export type Intersect<T, U> = [T] extends [never]
     : [U] extends [never]
       ? T
       : T & U
+
+export type UnionToObject<T> = {
+    [K in KeysOfUnion<T>]: T extends { [P in K]?: infer U } ? U : never
+}

@@ -3,9 +3,8 @@ import type {
     DistributivePick,
     Exact,
     Intersect,
-    KVPair,
     SliceFromStart,
-    Unionize,
+    UnionToObject,
     ValueOf,
     evaluate,
 } from './utils'
@@ -136,24 +135,16 @@ export type TableEntry<
 
 type InputSpec<
     Entity extends Record<string, unknown>,
-    KV extends KVPair = Unionize<Entity>,
+    E extends Record<string, unknown> = UnionToObject<Entity>,
 > = {
-    [key in keyof Entity]:
-        | [key, (key: Extract<KV, { k: key }>['v']) => unknown]
-        | key
-}[keyof Entity]
+    [key in keyof E]: [key, (key: E[key]) => unknown] | key
+}[keyof E]
 
 type extractHeadOrPass<T> = T extends unknown[] ? T[0] : T
 type numeric = number | bigint
-type keysWithNumericValue<
-    Entity extends object,
-    KVs extends KVPair = Unionize<Entity>,
-    K_wNumber extends PropertyKey = Extract<KVs, { v: numeric }>['k'],
-    K_woNumber extends PropertyKey = Exclude<
-        KVs,
-        { k: K_wNumber; v: numeric }
-    >['k'],
-> = Exclude<K_wNumber, K_woNumber>
+type keysWithNumericValue<Entity extends object, E = UnionToObject<Entity>> = {
+    [key in keyof E]: E[key] extends numeric ? key : never
+}[keyof E]
 
 type FullKeySpecSimple<Entity extends Record<string, unknown>> =
     | InputSpec<Entity>[]
@@ -162,25 +153,24 @@ type FullKeySpecSimple<Entity extends Record<string, unknown>> =
 
 type DiscriminatedSchema<
     Entity extends Record<string, unknown>,
-    DiscriminatorPair extends { k: PropertyKey; v: PropertyKey } = Extract<
-        Unionize<Pick<Entity, keyof Entity> /* Pick common keys */>,
-        { v: PropertyKey }
-    >,
-> = DiscriminatorPair extends unknown
-    ? {
-          discriminator: DiscriminatorPair['k']
-          spec: {
-              [val in DiscriminatorPair['v']]: FullKeySpecSimple<
-                  Extract<
-                      Entity,
-                      {
-                          [k in DiscriminatorPair['k']]: val
-                      }
+    E extends Record<string, unknown> = UnionToObject<Entity>,
+> = {
+    [key in keyof E]: E[key] extends PropertyKey
+        ? {
+              discriminator: key
+              spec: {
+                  [val in E[key]]: FullKeySpecSimple<
+                      Extract<
+                          Entity,
+                          {
+                              [k in key]: val
+                          }
+                      >
                   >
-              >
+              }
           }
-      }
-    : never
+        : never
+}[keyof E]
 
 type FullKeySpec<Entity extends Record<string, unknown>> =
     | FullKeySpecSimple<Entity>
