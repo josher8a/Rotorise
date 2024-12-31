@@ -60,7 +60,7 @@ describe('DynamoDB Utils', () => {
                   >
               >
 
-        attest.instantiations([1527, 'instantiations'])
+        attest.instantiations([1911, 'instantiations'])
     })
 
     it('CompositeKeyBuilder', () => {
@@ -345,7 +345,7 @@ describe('DynamoDB Utils', () => {
         )
         expect(testTableEntry.path().PK.toString()).toBe('PK')
 
-        attest.instantiations([839, 'instantiations'])
+        attest.instantiations([1401, 'instantiations'])
     })
 
     test('table Entry with transform and discriminator ', () => {
@@ -614,58 +614,60 @@ describe('DynamoDB Utils', () => {
         attest.instantiations([43281, 'instantiations'])
     })
 
-    test.skip('real world example', () => {
-        type BigUnion = 'A' | 'B'
-        // | 'C'
-        // | 'D'
-        // | 'E'
-        // | 'F'
-        // | 'G'
-        // | 'H'
-        // | 'I'
-        // | 'J'
-        // | 'K'
-        // | 'L'
-        // | 'M'
-        // | 'N'
-        // | 'O'
-        // | 'P'
-        // | 'Q'
-        // | 'R'
-        // | 'E'
-        // | 'T'
-        // // | 'U'
-        // // | 'V'
-        // // | 'W'
-        // // | 'X' // excessively deep
-        // | 'Y'
-        // | 'Z'
-        // | 'A1'
-        // | 'B1'
-        // | 'C1'
-        // | 'D1' // excessively deep mark
-        // | 'E1'
-        // | 'F1'
-        // | 'G1'
-        // | 'H1'
-        // | 'I1'
-        // | 'J1'
-        // | 'K1'
-        // | 'L1'
-        // | 'M1'
-        // | 'N1'
-        // | 'O1'
-        // | 'P1'
-        // | 'Q1'
-        // | 'R1'
-        // | 'E1'
-        // | 'T1'
-        // | 'U1'
-        // | 'V1'
-        // | 'W1'
-        // | 'X1'
-        // | 'Y1'
-        // | 'Z1'
+    test('real world example', () => {
+        type BigUnion =
+            | 'A'
+            | 'B'
+            | 'C'
+            | 'D'
+            | 'E'
+            | 'F'
+            | 'G'
+            | 'H'
+            | 'I'
+            | 'J'
+            | 'K'
+            | 'L'
+            | 'M'
+            | 'N'
+            | 'O'
+            | 'P'
+            | 'Q'
+            | 'R'
+            | 'E'
+            | 'T'
+            | 'U'
+            | 'V'
+            | 'W'
+            | 'X' // excessively deep mark - before PR
+            | 'Y'
+            | 'Z'
+            | 'A1'
+            | 'B1'
+            | 'C1'
+            | 'D1' // excessively deep mark - before Attest
+            | 'E1'
+            | 'F1'
+            | 'G1'
+            | 'H1'
+            | 'I1'
+            | 'J1'
+            | 'K1'
+            | 'L1'
+            | 'M1'
+            | 'N1'
+            | 'O1'
+            | 'P1'
+            | 'Q1'
+            | 'R1'
+            | 'E1'
+            | 'T1'
+            | 'U1'
+            | 'V1'
+            | 'W1'
+            | 'X1'
+            | 'Y1'
+            | 'Z1' // YOLO
 
         type BigRecord = {
             [k in BigUnion]: `value:${k}`
@@ -825,6 +827,6 @@ describe('DynamoDB Utils', () => {
             { depth: 2 },
         ) satisfies 'TAG#A#ID2#yolo'
 
-        attest.instantiations([2882730, 'instantiations'])
+        attest.instantiations([40609, 'instantiations'])
     })
 })
