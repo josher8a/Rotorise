@@ -32,8 +32,9 @@
   "homepage": "https://github.com/josher8a/rotorise",
   "scripts": {
     "build": "tsup",
-    "test": "tsc --noEmit && vitest",
-    "format": "biome format --write ./src"
+    "test": "vitest",
+    "format": "biome format --write ./src",
+    "check": "tsc --noEmit"
   },
   "author": {
     "name": "Joshua Hernandez",

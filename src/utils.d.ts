@@ -55,14 +55,16 @@ export type DistributiveOmit<T, K extends keyof T> = T extends unknown
     : never
 
 export type SliceFromStart<
-    T extends unknown[],
+    T,
     End extends number,
     Acc extends unknown[] = [],
-> = Acc['length'] extends End
-    ? Acc
-    : T extends [infer Head, ...infer Tail]
-      ? SliceFromStart<Tail, End, [...Acc, Head]>
-      : Acc
+> = T extends unknown[]
+    ? Acc['length'] extends End
+        ? Acc
+        : T extends [infer Head, ...infer Tail]
+          ? SliceFromStart<Tail, End, [...Acc, Head]>
+          : Acc
+    : never
 
 export type Slices<
     Rest extends unknown[],
@@ -81,15 +83,6 @@ export type Slices<
           >
         : never
     : Acc | (Reached extends true ? Slice : never)
-
-/**
- * Intersect two types, if one of them is never, return the other one.
- */
-export type Intersect<T, U> = [T] extends [never]
-    ? U
-    : [U] extends [never]
-      ? T
-      : T & U
 
 export type UnionToObject<T> = {
     [K in KeysOfUnion<T>]: T extends { [P in K]?: infer U } ? U : never

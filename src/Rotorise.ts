@@ -2,44 +2,47 @@ import type {
     DistributiveOmit,
     DistributivePick,
     Exact,
-    Intersect,
     SliceFromStart,
     UnionToObject,
     ValueOf,
     evaluate,
 } from './utils'
 
-export type CompositeKeyParams<
+export type CompositeKeyParamsImpl<
     Entity extends Record<string, unknown>,
-    FullSpec extends InputSpec<Entity>[],
+    InputSpec extends InputSpecShape,
     skip extends number = 1,
 > = Entity extends unknown
     ? evaluate<
-          Required<
-              Pick<
-                  Entity,
-                  extractHeadOrPass<
-                      SliceFromStart<
-                          FullSpec,
-                          number extends skip ? 1 : skip
-                      >[number]
-                  > &
-                      keyof Entity
-              >
+          Pick<
+              Entity,
+              extractHeadOrPass<
+                  SliceFromStart<
+                      InputSpec,
+                      number extends skip ? 1 : skip
+                  >[number]
+              > &
+                  keyof Entity
           > &
               Partial<
                   Pick<
                       Entity,
-                      extractHeadOrPass<FullSpec[number]> & keyof Entity
+                      extractHeadOrPass<InputSpec[number]> & keyof Entity
                   >
               >
       >
     : never
 
-export type CompositeKeyBuilder<
+export type CompositeKeyParams<
     Entity extends Record<string, unknown>,
-    Spec extends InputSpec<Entity>[],
-    Delimiter extends string = '#',
+    FullSpec extends InputSpec<Entity>[],
+    skip extends number = 1,
+> = CompositeKeyParamsImpl<Entity, FullSpec, skip>
+
+type CompositeKeyBuilderImpl<
+    Entity extends Record<string, unknown>,
+    Spec,
+    Separator extends string = '#',
     Deep extends number = number,
     isPartial extends boolean = false,
 > = Entity extends unknown
@@ -48,90 +51,103 @@ export type CompositeKeyBuilder<
               Entity,
               number extends Deep ? Spec : SliceFromStart<Spec, Deep>
           >,
-          Delimiter,
+          Separator,
           (boolean extends isPartial ? false : isPartial) extends false
               ? false
               : true
       >
     : never
 
+export type CompositeKeyBuilder<
+    Entity extends Record<string, unknown>,
+    Spec extends InputSpec<Entity>[],
+    Separator extends string = '#',
+    Deep extends number = number,
+    isPartial extends boolean = false,
+> = CompositeKeyBuilderImpl<Entity, Spec, Separator, Deep, isPartial>
+
 type joinable = string | number | bigint | boolean | null | undefined
 type joinablePair = [joinable, joinable]
 
 type Join<
     Pairs,
-    Delimiter extends string,
+    Separator extends string,
     KeepIntermediate extends boolean = false,
     Acc extends string = '',
     AllAcc extends string = never,
 > = Pairs extends [infer Head extends joinablePair, ...infer Tail]
     ? Join<
           Tail,
-          Delimiter,
+          Separator,
           KeepIntermediate,
           Acc extends ''
-              ? `${Head[0]}${Delimiter}${Head[1]}`
-              : `${Acc}${Delimiter}${Head[0]}${Delimiter}${Head[1]}`,
+              ? `${Head[0]}${Separator}${Head[1]}`
+              : `${Acc}${Separator}${Head[0]}${Separator}${Head[1]}`,
           KeepIntermediate extends true
               ? AllAcc | (Acc extends '' ? never : Acc)
               : never
       >
-    : KeepIntermediate extends true
-      ? AllAcc | Acc
-      : Acc
+    : AllAcc | Acc
+
+type ExtractPair<Entity extends Record<string, unknown>, Spec> = Spec extends [
+    infer Key extends string,
+    // biome-ignore lint/suspicious/noExplicitAny: <explanation>
+    (...key: any[]) => infer Value extends joinable,
+]
+    ? [Uppercase<Key>, Value]
+    : Spec extends keyof Entity & string
+      ? [Uppercase<Spec>, Entity[Spec] & joinable]
+      : never
 
 type CompositeKeyRec<
     Entity extends Record<string, unknown>,
     Spec,
     Acc extends joinablePair[] = [],
-    KeysCache extends keyof Entity & string = keyof Entity & string,
-    InputSpecsCache extends InputSpec<Entity>[] = InputSpec<Entity>[],
+    KeysCache extends string = keyof Entity & string,
 > = Spec extends [infer Head, ...infer Tail]
-    ? Head extends KeysCache
-        ? Entity[Head] extends infer V extends joinable
-            ? CompositeKeyRec<
-                  Entity,
-                  Tail,
-                  [...Acc, [Uppercase<Head>, V]],
-                  KeysCache,
-                  InputSpecsCache
-              >
-            : never
-        : Head extends [
-                infer K extends KeysCache,
-                // biome-ignore lint/suspicious/noExplicitAny: This is a type guard
-                (...args: any[]) => infer V extends joinable,
-            ]
-          ? CompositeKeyRec<
-                Entity,
-                Tail,
-                [...Acc, [Uppercase<K>, V]],
-                KeysCache,
-                InputSpecsCache
-            >
-          : never
+    ? CompositeKeyRec<
+          Entity,
+          Tail,
+          [...Acc, ExtractPair<Entity, Head>],
+          KeysCache
+      >
     : Acc
+
+type DiscriminatedSchemaShape = {
+    discriminator: PropertyKey
+    spec: {
+        [k in PropertyKey]: unknown
+    }
+}
+
+// biome-ignore lint/suspicious/noExplicitAny: <explanation>
+type InputSpecShape = ([string, (key: any) => unknown] | string)[]
+
+type TableEntryImpl<
+    Entity extends Record<string, unknown>,
+    Schema,
+    Separator extends string = '#',
+> = Entity extends unknown
+    ? {
+          [Key in keyof Schema]: Schema[Key] extends DiscriminatedSchemaShape
+              ? ValueOf<{
+                    [K in Schema[Key]['discriminator']]: {
+                        [V in keyof Schema[Key]['spec']]: ProcessKey<
+                            Entity,
+                            Schema[Key]['spec'][V],
+                            Separator
+                        >
+                    }[Entity[K & keyof Entity] & keyof Schema[Key]['spec']]
+                }>
+              : ProcessKey<Entity, Schema[Key], Separator>
+      } & Entity
+    : never
 
 export type TableEntry<
     Entity extends Record<string, unknown>,
     Schema extends Record<string, FullKeySpec<Entity>>,
-    Delimiter extends string = '#',
-> = Entity extends unknown
-    ? {
-          [Key in keyof Schema]: Schema[Key] extends infer Spec extends
-              DiscriminatedSchema<Entity>
-              ? ValueOf<{
-                    [K in Spec['discriminator']]: {
-                        [V in keyof Spec['spec']]: ProcessKey<
-                            Entity,
-                            Spec['spec'][V],
-                            Delimiter
-                        >
-                    }[Entity[K] & keyof Spec['spec']]
-                }>
-              : ProcessKey<Entity, Schema[Key], Delimiter>
-      } & Entity
-    : never
+    Separator extends string = '#',
+> = TableEntryImpl<Entity, Schema, Separator>
 
 type InputSpec<
     Entity extends Record<string, unknown>,
@@ -141,15 +157,13 @@ type InputSpec<
 }[keyof E]
 
 type extractHeadOrPass<T> = T extends unknown[] ? T[0] : T
-type numeric = number | bigint
-type keysWithNumericValue<Entity extends object, E = UnionToObject<Entity>> = {
-    [key in keyof E]: E[key] extends numeric ? key : never
-}[keyof E]
 
 type FullKeySpecSimple<Entity extends Record<string, unknown>> =
     | InputSpec<Entity>[]
-    | (keysWithNumericValue<Entity> & keyof Entity)
+    | (keyof Entity & string)
     | null
+
+type FullKeySpecSimpleShape = InputSpecShape | string | null
 
 type DiscriminatedSchema<
     Entity extends Record<string, unknown>,
@@ -176,13 +190,15 @@ type FullKeySpec<Entity extends Record<string, unknown>> =
     | FullKeySpecSimple<Entity>
     | DiscriminatedSchema<Entity>
 
+type FullKeySpecShape = FullKeySpecSimpleShape | DiscriminatedSchemaShape
+
 const chainableNoOpProxy: unknown = new Proxy(() => chainableNoOpProxy, {
     get: () => chainableNoOpProxy,
 })
 
 const createPathProxy = <T>(path = ''): T => {
     return new Proxy(() => {}, {
-        get: (target, prop, receiver) => {
+        get: (target, prop) => {
             if (typeof prop === 'string') {
                 if (prop === 'toString') {
                     return () => path
@@ -317,9 +333,7 @@ const toEntry =
     <const ExactEntity extends Entity>(
         item: ExactEntity,
     ): ExactEntity extends infer E extends Entity
-        ? Schema extends Record<string, FullKeySpec<E>>
-            ? TableEntry<E, Schema, Separator>
-            : never
+        ? TableEntryImpl<E, Schema, Separator>
         : never => {
         const entry = { ...item }
 
@@ -336,12 +350,12 @@ const toEntry =
 const fromEntry =
     <const Entity extends Record<string, unknown>>() =>
     <
-        const Schema extends Record<string, FullKeySpec<Entity>>,
+        const Schema extends Record<string, FullKeySpecShape>,
         Separator extends string = '#',
     >(
         schema: Schema,
     ) =>
-    <const Entry extends TableEntry<Entity, Schema, Separator>>(
+    <const Entry extends TableEntryImpl<Entity, Schema, Separator>>(
         entry: Entry,
     ): DistributiveOmit<Entry, keyof Schema> => {
         const item = { ...entry }
@@ -356,11 +370,11 @@ const fromEntry =
 type ProcessSpecType<
     Entity extends Record<string, unknown>,
     Spec,
-    Config extends { depth?: number; allowPartial?: boolean },
+    Config extends SpecConfigShape,
 > = Spec extends string
-    ? DistributivePick<Entity, Spec & keyof Entity>
-    : Spec extends InputSpec<Entity>[]
-      ? CompositeKeyParams<
+    ? DistributivePick<Entity, Spec>
+    : Spec extends InputSpecShape
+      ? CompositeKeyParamsImpl<
             Entity,
             Spec,
             Config['allowPartial'] extends true
@@ -370,44 +384,43 @@ type ProcessSpecType<
       : never
 
 // Cache commonly used conditional types
-type SpecConfig<Spec> = Spec extends string
-    ? never
-    : {
-          depth?: number
-          allowPartial?: boolean
-      }
+type SpecConfig<Spec> = Spec extends string ? never : SpecConfigShape
+
+type SpecConfigShape = {
+    depth?: number
+    allowPartial?: boolean
+}
 
 // Pre-compute discriminated variant types
-type VariantType<
+type VariantType<Entity, K extends PropertyKey, V extends PropertyKey> = [
     Entity,
-    K extends PropertyKey,
-    V extends PropertyKey,
-> = Entity & { [k in K]: V }
+] extends [never]
+    ? { [k in K]: V }
+    : Entity & { [k in K]: V }
 
 // Flatten nested type computation
 type ProcessVariant<
     Entity extends Record<string, unknown>,
     K extends PropertyKey,
     V extends PropertyKey,
-    Spec extends DiscriminatedSchema<Entity>,
-    Config extends SpecConfig<Spec>,
-> = Intersect<
+    Spec extends DiscriminatedSchemaShape,
+    Config extends SpecConfigShape,
+> = VariantType<
     ProcessSpecType<
         VariantType<Entity, K, V>,
-        Extract<Spec['spec'][V & keyof Spec['spec']], unknown>,
+        Spec['spec'][V & keyof Spec['spec']],
         Config
     >,
-    {
-        [k in K]: V
-    }
+    K,
+    V
 >
 
 // Optimized attribute processing
 type OptimizedAttributes<
     Entity extends Record<string, unknown>,
     Spec,
-    Config extends SpecConfig<Spec>,
-> = Spec extends DiscriminatedSchema<Entity>
+    Config extends SpecConfigShape,
+> = Spec extends DiscriminatedSchemaShape
     ? {
           [K in Spec['discriminator']]: {
               [V in keyof Spec['spec']]: ProcessVariant<
@@ -426,12 +439,12 @@ type ProcessKey<
     Spec,
     Separator extends string,
     NullAs extends never | undefined = never,
-    Config extends SpecConfig<Spec> = SpecConfig<Spec>,
+    Config extends SpecConfigShape = SpecConfigShape,
     Attributes = Pick<Entity, Spec & keyof Entity>,
 > = Spec extends keyof Entity
     ? ValueOf<Attributes>
-    : Spec extends InputSpec<Entity>[]
-      ? CompositeKeyBuilder<
+    : Spec extends InputSpecShape
+      ? CompositeKeyBuilderImpl<
             Entity,
             Spec,
             Separator,
@@ -442,56 +455,58 @@ type ProcessKey<
         ? NullAs
         : never
 
+type OptimizedBuildedKey<
+    NarrowEntity extends Record<string, unknown>,
+    Spec,
+    Separator extends string,
+    Config extends SpecConfigShape,
+    Attributes,
+> = Spec extends DiscriminatedSchemaShape
+    ? {
+          [K in Spec['discriminator']]: {
+              [V in keyof Spec['spec']]: ProcessKey<
+                  NarrowEntity,
+                  Spec['spec'][V],
+                  Separator,
+                  undefined,
+                  Config,
+                  Attributes
+              >
+          }[keyof Spec['spec']]
+      }[Spec['discriminator']]
+    : ProcessKey<NarrowEntity, Spec, Separator, undefined, Config, Attributes>
+
 type TableEntryDefinition<
     Entity extends Record<string, unknown>,
-    Schema extends Record<string, FullKeySpec<Entity>>,
-    Separator extends string = '#',
+    Schema extends Record<string, FullKeySpecShape>,
+    Separator extends string,
 > = {
     toEntry: <const ExactEntity extends Exact<Entity, ExactEntity>>(
         item: ExactEntity,
     ) => ExactEntity extends infer E extends Entity
-        ? Schema extends Record<string, FullKeySpec<E>>
-            ? TableEntry<E, Schema, Separator>
-            : never
+        ? TableEntryImpl<E, Schema, Separator>
         : never
-    fromEntry: <const Entry extends TableEntry<Entity, Schema, Separator>>(
+    fromEntry: <const Entry extends TableEntryImpl<Entity, Schema, Separator>>(
         entry: Entry,
     ) => DistributiveOmit<Entry, keyof Schema>
     key: <
-        const Key extends string,
+        const Key extends keyof Schema,
         const Config extends SpecConfig<Spec>,
         const Attributes extends OptimizedAttributes<Entity, Spec, Config>,
-        NarrowEntity extends Entity = Entity & Attributes,
-        Spec extends FullKeySpec<Entity> = Key extends keyof Schema
-            ? Schema[Key]
-            : never,
+        Spec = Schema[Key],
     >(
-        key: Key & keyof Schema,
+        key: Key,
         attributes: Attributes,
         config?: Config,
-    ) => Spec extends DiscriminatedSchema<NarrowEntity>
-        ? {
-              [K in Spec['discriminator']]: {
-                  [V in keyof Spec['spec']]: ProcessKey<
-                      NarrowEntity,
-                      Spec['spec'][V],
-                      Separator,
-                      undefined,
-                      Config & SpecConfig<Spec['spec'][V]>,
-                      Attributes
-                  >
-              }[keyof Spec['spec']]
-          }[Spec['discriminator']]
-        : ProcessKey<
-              NarrowEntity,
-              Spec,
-              Separator,
-              undefined,
-              Config,
-              Attributes
-          >
-    infer: TableEntry<Entity, Schema, Separator>
-    path: () => TableEntry<Entity, Schema, Separator>
+    ) => OptimizedBuildedKey<
+        Entity & Attributes,
+        Spec,
+        Separator,
+        Config,
+        Attributes
+    >
+    infer: TableEntryImpl<Entity, Schema, Separator>
+    path: () => TableEntryImpl<Entity, Schema, Separator>
 }
 
 export const tableEntry =
@@ -504,11 +519,10 @@ export const tableEntry =
         separator: Separator = '#' as Separator,
     ): TableEntryDefinition<Entity, Schema, Separator> => {
         return {
-            toEntry: toEntry<Entity>()(schema as never, separator) as never,
-            fromEntry: fromEntry<Entity>()(schema) as never,
-            key: key<Entity>()(schema as never, separator) as never,
-            infer: chainableNoOpProxy as TableEntry<Entity, Schema, Separator>,
-            path: () =>
-                createPathProxy<TableEntry<Entity, Schema, Separator>>(),
+            toEntry: toEntry()(schema as never, separator) as never,
+            fromEntry: fromEntry()(schema as never) as never,
+            key: key()(schema as never, separator) as never,
+            infer: chainableNoOpProxy as never,
+            path: () => createPathProxy() as never,
         }
     }
