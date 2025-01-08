@@ -492,8 +492,11 @@ type TableEntryDefinition<
     key: <
         const Key extends keyof Schema,
         const Config extends SpecConfig<Spec>,
-        const Attributes extends OptimizedAttributes<Entity, Spec, Config>,
+        const Attributes extends OptimizedAttributes<Entity, Spec, Config_>,
         Spec = Schema[Key],
+        Config_ extends SpecConfigShape = [SpecConfigShape] extends [Config] // exclude undefined param
+            ? { depth?: undefined; allowPartial?: undefined }
+            : Config,
     >(
         key: Key,
         attributes: Attributes,
@@ -502,7 +505,7 @@ type TableEntryDefinition<
         Entity & Attributes,
         Spec,
         Separator,
-        Config,
+        Config_,
         Attributes
     >
     infer: TableEntryImpl<Entity, Schema, Separator>
