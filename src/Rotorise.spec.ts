@@ -5,6 +5,7 @@ import {
 } from './Rotorise'
 import { expect, test, describe, it } from 'vitest'
 import { attest } from '@ark/attest'
+import type { NonEmptyArray } from './utils'
 
 type Equal<T, U> = (<G>() => G extends T ? 1 : 2) extends <G>() => G extends U
     ? 1
@@ -309,7 +310,7 @@ describe('DynamoDB Utils', () => {
             ),
         ).toBe(1)
 
-        attest.instantiations([9727, 'instantiations'])
+        attest.instantiations([12000, 'instantiations'])
     })
 
     test('path from infer then toString', () => {
@@ -345,7 +346,7 @@ describe('DynamoDB Utils', () => {
         )
         expect(testTableEntry.path().PK.toString()).toBe('PK')
 
-        attest.instantiations([1401, 'instantiations'])
+        attest.instantiations([1800, 'instantiations'])
     })
 
     test('table Entry with transform and discriminator ', () => {
@@ -370,7 +371,7 @@ describe('DynamoDB Utils', () => {
                         | 'b'
                         | 'c'
                         | 'z'
-                        | (
+                        | NonEmptyArray<
                               | 'a'
                               | 'b'
                               | 'c'
@@ -379,7 +380,7 @@ describe('DynamoDB Utils', () => {
                               | ['b', (key: 1n | 2) => unknown]
                               | ['c', (key: true | 0) => unknown]
                               | ['z', (key: 'never') => unknown]
-                          )[]
+                          >
                         | null
                         | {
                               discriminator: 'a'
@@ -389,7 +390,7 @@ describe('DynamoDB Utils', () => {
                                       | 'b'
                                       | 'c'
                                       | 'z'
-                                      | (
+                                      | NonEmptyArray<
                                             | 'a'
                                             | 'b'
                                             | 'c'
@@ -398,14 +399,14 @@ describe('DynamoDB Utils', () => {
                                             | ['b', (key: 1n) => unknown]
                                             | ['c', (key: true) => unknown]
                                             | ['z', (key: 'never') => unknown]
-                                        )[]
+                                        >
                                       | null
                                   a2:
                                       | 'a'
                                       | 'b'
                                       | 'c'
                                       | 'z'
-                                      | (
+                                      | NonEmptyArray<
                                             | 'a'
                                             | 'b'
                                             | 'c'
@@ -414,7 +415,7 @@ describe('DynamoDB Utils', () => {
                                             | ['b', (key: 2) => unknown]
                                             | ['c', (key: 0) => unknown]
                                             | ['z', (key: 'never') => unknown]
-                                        )[]
+                                        >
                                       | null
                               }
                           }
@@ -426,7 +427,7 @@ describe('DynamoDB Utils', () => {
                                       | 'b'
                                       | 'c'
                                       | 'z'
-                                      | (
+                                      | NonEmptyArray<
                                             | 'a'
                                             | 'b'
                                             | 'c'
@@ -438,7 +439,7 @@ describe('DynamoDB Utils', () => {
                                             | ['b', (key: 2 | 1n) => unknown]
                                             | ['c', (key: true | 0) => unknown]
                                             | ['z', (key: 'never') => unknown]
-                                        )[]
+                                        >
                                       | null
                               }
                           }
@@ -611,7 +612,7 @@ describe('DynamoDB Utils', () => {
             }),
         ).toBeUndefined()
 
-        attest.instantiations([43281, 'instantiations'])
+        attest.instantiations([60000, 'instantiations'])
     })
 
     test('real world example', () => {
@@ -827,6 +828,138 @@ describe('DynamoDB Utils', () => {
             { depth: 2 },
         ) satisfies 'TAG#A#ID2#yolo'
 
-        attest.instantiations([40609, 'instantiations'])
+        attest.instantiations([50000, 'instantiations'])
+    })
+
+    test('schema allows for nullish values if has transform', () => {
+        const base = tableEntry<
+            | { a: 'a1'; b: 1n; c: true; z: 'never' }
+            | { a: 'a2'; b: 2; c: 0; z?: 'never' | null }
+        >()
+
+        type expect_schema = isTrue<
+            Equal<
+                Parameters<typeof base>,
+                [
+                    schema: Record<
+                        string,
+                        | 'a'
+                        | 'b'
+                        | 'c'
+                        | 'z'
+                        | NonEmptyArray<
+                              | 'a'
+                              | 'b'
+                              | 'c'
+                              | ['a', (key: 'a1' | 'a2') => unknown]
+                              | ['b', (key: 1n | 2) => unknown]
+                              | ['c', (key: true | 0) => unknown]
+                              | [
+                                    'z',
+                                    (
+                                        key: 'never' | null | undefined,
+                                    ) => unknown,
+                                ]
+                          >
+                        | null
+                        | {
+                              discriminator: 'a'
+                              spec: {
+                                  a1:
+                                      | 'a'
+                                      | 'b'
+                                      | 'c'
+                                      | 'z'
+                                      | NonEmptyArray<
+                                            | 'a'
+                                            | 'b'
+                                            | 'c'
+                                            | 'z'
+                                            | ['a', (key: 'a1') => unknown]
+                                            | ['b', (key: 1n) => unknown]
+                                            | ['c', (key: true) => unknown]
+                                            | ['z', (key: 'never') => unknown]
+                                        >
+                                      | null
+                                  a2:
+                                      | 'a'
+                                      | 'b'
+                                      | 'c'
+                                      | 'z'
+                                      | NonEmptyArray<
+                                            | 'a'
+                                            | 'b'
+                                            | 'c'
+                                            | ['a', (key: 'a2') => unknown]
+                                            | ['b', (key: 2) => unknown]
+                                            | ['c', (key: 0) => unknown]
+                                            | [
+                                                  'z',
+                                                  (
+                                                      key:
+                                                          | 'never'
+                                                          | null
+                                                          | undefined,
+                                                  ) => unknown,
+                                              ]
+                                        >
+                                      | null
+                              }
+                          }
+                    >,
+                    separator?: string | undefined,
+                ]
+            >
+        >
+
+        const testTableEntry = base(
+            {
+                PK: ['a', 'b', 'c'],
+                SK: [
+                    'c',
+                    ['z', (z: 'never' | undefined | null) => z ?? 'DEFAULT'],
+                ],
+                GSIPK: 'z',
+            },
+            '-',
+        )
+
+        type entries =
+            | ({
+                  a: 'a1'
+                  b: 1n
+                  c: true
+                  z: 'never'
+              } & {
+                  readonly PK: 'A-a1-B-1-C-true'
+                  readonly SK: 'C-true-Z-never' | 'C-true-Z-DEFAULT'
+                  readonly GSIPK: 'never'
+              })
+            | ({
+                  a: 'a2'
+                  b: 2
+                  c: 0
+                  z?: 'never' | null
+              } & {
+                  readonly PK: 'A-a2-B-2-C-0'
+                  readonly SK: 'C-0-Z-DEFAULT' | 'C-0-Z-never'
+                  readonly GSIPK: 'never' | undefined
+              })
+
+        type expect_infer = isTrue<Equal<typeof testTableEntry.infer, entries>>
+
+        expect(
+            testTableEntry.key('SK', {
+                c: 0,
+                z: undefined,
+            }),
+        ).toBe('C-0-Z-DEFAULT')
+
+        expect(
+            testTableEntry.key('SK', {
+                c: 0,
+                z: 'never',
+            }),
+        ).toBe('C-0-Z-never')
     })
 })

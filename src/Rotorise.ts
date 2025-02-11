@@ -2,6 +2,8 @@ import type {
     DistributiveOmit,
     DistributivePick,
     Exact,
+    NonEmptyArray,
+    Replace,
     SliceFromStart,
     UnionToObject,
     ValueOf,
@@ -153,13 +155,15 @@ type InputSpec<
     Entity extends Record<string, unknown>,
     E extends Record<string, unknown> = UnionToObject<Entity>,
 > = {
-    [key in keyof E]: [key, (key: E[key]) => unknown] | key
+    [key in keyof E]:
+        | [key, (key: E[key]) => unknown]
+        | (undefined extends E[key] ? never : null extends E[key] ? never : key)
 }[keyof E]
 
 type extractHeadOrPass<T> = T extends unknown[] ? T[0] : T
 
 type FullKeySpecSimple<Entity extends Record<string, unknown>> =
-    | InputSpec<Entity>[]
+    | NonEmptyArray<InputSpec<Entity>>
     | (keyof Entity & string)
     | null
 
@@ -277,7 +281,10 @@ const key =
 
             structure = val
         } else {
-            return attributes[case_ as keyof Attributes] as never
+            const value = attributes[case_ as keyof Attributes]
+            if (value == null) return undefined as never
+
+            return value as never
         }
 
         if (config?.depth !== undefined) {
@@ -289,12 +296,12 @@ const key =
             const [key, transform] = Array.isArray(keySpec)
                 ? keySpec
                 : [keySpec]
-            if (key === null) {
-                continue
-            }
 
             const value = attributes[key as keyof Attributes]
-            if (value !== undefined && value !== null && value !== '') {
+            if (
+                (value !== undefined && value !== null && value !== '') ||
+                transform
+            ) {
                 composite.push(key.toString().toUpperCase())
                 composite.push(
                     `${transform ? transform(value as never) : value}`,
@@ -442,7 +449,7 @@ type ProcessKey<
     Config extends SpecConfigShape = SpecConfigShape,
     Attributes = Pick<Entity, Spec & keyof Entity>,
 > = Spec extends keyof Entity
-    ? ValueOf<Attributes>
+    ? Replace<ValueOf<Attributes>, null, undefined>
     : Spec extends InputSpecShape
       ? CompositeKeyBuilderImpl<
             Entity,

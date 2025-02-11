@@ -85,5 +85,9 @@ export type Slices<
     : Acc | (Reached extends true ? Slice : never)
 
 export type UnionToObject<T> = {
-    [K in KeysOfUnion<T>]: T extends { [P in K]?: infer U } ? U : never
+    [K in KeysOfUnion<T>]: T extends { [P in K]?: unknown } ? T[K] : never
 }
+
+export type NonEmptyArray<T> = [T, ...T[]]
+
+export type Replace<T, U, V> = T extends U ? V : T
