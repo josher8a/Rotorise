@@ -448,19 +448,21 @@ type ProcessKey<
     NullAs extends never | undefined = never,
     Config extends SpecConfigShape = SpecConfigShape,
     Attributes = Pick<Entity, Spec & keyof Entity>,
-> = Spec extends keyof Entity
-    ? Replace<ValueOf<Attributes>, null, undefined>
-    : Spec extends InputSpecShape
-      ? CompositeKeyBuilderImpl<
-            Entity,
-            Spec,
-            Separator,
-            Exclude<Config['depth'], undefined>,
-            Exclude<Config['allowPartial'], undefined>
-        >
-      : Spec extends null
-        ? NullAs
-        : never
+> = [Entity] extends [never]
+    ? never
+    : Spec extends keyof Entity
+      ? Replace<ValueOf<Attributes>, null, undefined>
+      : Spec extends InputSpecShape
+        ? CompositeKeyBuilderImpl<
+              Entity,
+              Spec,
+              Separator,
+              Exclude<Config['depth'], undefined>,
+              Exclude<Config['allowPartial'], undefined>
+          >
+        : Spec extends null
+          ? NullAs
+          : never
 
 type OptimizedBuildedKey<
     NarrowEntity extends Record<string, unknown>,
@@ -472,7 +474,7 @@ type OptimizedBuildedKey<
     ? {
           [K in Spec['discriminator']]: {
               [V in keyof Spec['spec']]: ProcessKey<
-                  NarrowEntity,
+                  NarrowEntity extends { [k in K]: V } ? NarrowEntity : never,
                   Spec['spec'][V],
                   Separator,
                   undefined,
