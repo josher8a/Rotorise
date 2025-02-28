@@ -346,7 +346,7 @@ describe('DynamoDB Utils', () => {
         )
         expect(testTableEntry.path().PK.toString()).toBe('PK')
 
-        attest.instantiations([1800, 'instantiations'])
+        attest.instantiations([1400, 'instantiations'])
     })
 
     test('table Entry with transform and discriminator ', () => {
@@ -828,7 +828,7 @@ describe('DynamoDB Utils', () => {
             { depth: 2 },
         ) satisfies 'TAG#A#ID2#yolo'
 
-        attest.instantiations([50000, 'instantiations'])
+        attest.instantiations([49000, 'instantiations'])
     })
 
     test('schema allows for nullish values if has transform', () => {
@@ -961,5 +961,73 @@ describe('DynamoDB Utils', () => {
                 z: 'never',
             }),
         ).toBe('C-0-Z-never')
+    })
+
+    test('heterogenous keys schema', () => {
+        const base = tableEntry<
+            { a: 'a1'; b: 1n; extra: 'extra' } | { a: 'a2'; b: 2 }
+        >()
+
+        type t = Exclude<
+            Exclude<
+                Parameters<typeof base>[0][string],
+                {
+                    discriminator: unknown
+                }
+            >,//['spec']['a2'],
+            string | null
+        >['0']
+
+        type expect_schema = isTrue<
+            Equal<
+                Parameters<typeof base>,
+                [
+                    schema: Record<
+                        string,
+                        | 'a'
+                        | 'b'
+                        | NonEmptyArray<
+                              | 'a'
+                              | 'b'
+                              | ['a', (key: 'a1' | 'a2') => unknown]
+                              | ['b', (key: 1n | 2) => unknown]
+                          >
+                        | null
+                        | {
+                              discriminator: 'a'
+                              spec: {
+                                  a1:
+                                      | 'a'
+                                      | 'b'
+                                      | 'extra'
+                                      | NonEmptyArray<
+                                            | 'a'
+                                            | 'b'
+                                            | 'extra'
+                                            | ['a', (key: 'a1') => unknown]
+                                            | ['b', (key: 1n) => unknown]
+                                            | [
+                                                  'extra',
+                                                  (key: 'extra') => unknown,
+                                              ]
+                                        >
+                                      | null
+                                  a2:
+                                      | 'a'
+                                      | 'b'
+                                      | NonEmptyArray<
+                                            | 'a'
+                                            | 'b'
+                                            | ['a', (key: 'a2') => unknown]
+                                            | ['b', (key: 2) => unknown]
+                                        >
+                                      | null
+                              }
+                          }
+                    >,
+                    separator?: string | undefined,
+                ]
+            >
+        >
     })
 })

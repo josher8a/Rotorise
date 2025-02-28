@@ -84,9 +84,12 @@ export type Slices<
         : never
     : Acc | (Reached extends true ? Slice : never)
 
-export type UnionToObject<T> = {
-    [K in KeysOfUnion<T>]: T extends { [P in K]?: unknown } ? T[K] : never
+export type MergeIntersectionObject<T, Keys = keyof T> = {
+    [K in Keys]: T[K]
 }
+// type t = MergeIntersectionObject<
+//     { a: 'a1'; b: 1n; extra: 'extra' } | { a: 'a2'; b: 2 }
+// >
 
 export type NonEmptyArray<T> = [T, ...T[]]
 

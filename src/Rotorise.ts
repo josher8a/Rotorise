@@ -5,13 +5,13 @@ import type {
     NonEmptyArray,
     Replace,
     SliceFromStart,
-    UnionToObject,
     ValueOf,
     evaluate,
+    MergeIntersectionObject,
 } from './utils'
 
 export type CompositeKeyParamsImpl<
-    Entity extends Record<string, unknown>,
+    Entity,
     InputSpec extends InputSpecShape,
     skip extends number = 1,
 > = Entity extends unknown
@@ -37,12 +37,12 @@ export type CompositeKeyParamsImpl<
 
 export type CompositeKeyParams<
     Entity extends Record<string, unknown>,
-    FullSpec extends InputSpec<Entity>[],
+    FullSpec extends InputSpec<MergeIntersectionObject<Entity>>[],
     skip extends number = 1,
 > = CompositeKeyParamsImpl<Entity, FullSpec, skip>
 
 type CompositeKeyBuilderImpl<
-    Entity extends Record<string, unknown>,
+    Entity,
     Spec,
     Separator extends string = '#',
     Deep extends number = number,
@@ -62,7 +62,7 @@ type CompositeKeyBuilderImpl<
 
 export type CompositeKeyBuilder<
     Entity extends Record<string, unknown>,
-    Spec extends InputSpec<Entity>[],
+    Spec extends InputSpec<MergeIntersectionObject<Entity>>[],
     Separator extends string = '#',
     Deep extends number = number,
     isPartial extends boolean = false,
@@ -91,7 +91,7 @@ type Join<
       >
     : AllAcc | Acc
 
-type ExtractPair<Entity extends Record<string, unknown>, Spec> = Spec extends [
+type ExtractPair<Entity, Spec> = Spec extends [
     infer Key extends string,
     // biome-ignore lint/suspicious/noExplicitAny: <explanation>
     (...key: any[]) => infer Value extends joinable,
@@ -102,7 +102,7 @@ type ExtractPair<Entity extends Record<string, unknown>, Spec> = Spec extends [
       : never
 
 type CompositeKeyRec<
-    Entity extends Record<string, unknown>,
+    Entity,
     Spec,
     Acc extends joinablePair[] = [],
     KeysCache extends string = keyof Entity & string,
@@ -123,10 +123,10 @@ type DiscriminatedSchemaShape = {
 }
 
 // biome-ignore lint/suspicious/noExplicitAny: <explanation>
-type InputSpecShape = ([string, (key: any) => unknown] | string)[]
+type InputSpecShape = ([PropertyKey, (key: any) => unknown] | PropertyKey)[]
 
 type TableEntryImpl<
-    Entity extends Record<string, unknown>,
+    Entity,
     Schema,
     Separator extends string = '#',
 > = Entity extends unknown
@@ -151,10 +151,7 @@ export type TableEntry<
     Separator extends string = '#',
 > = TableEntryImpl<Entity, Schema, Separator>
 
-type InputSpec<
-    Entity extends Record<string, unknown>,
-    E extends Record<string, unknown> = UnionToObject<Entity>,
-> = {
+type InputSpec<E> = {
     [key in keyof E]:
         | [key, (key: E[key]) => unknown]
         | (undefined extends E[key] ? never : null extends E[key] ? never : key)
@@ -162,17 +159,14 @@ type InputSpec<
 
 type extractHeadOrPass<T> = T extends unknown[] ? T[0] : T
 
-type FullKeySpecSimple<Entity extends Record<string, unknown>> =
-    | NonEmptyArray<InputSpec<Entity>>
+type FullKeySpecSimple<Entity> =
+    | NonEmptyArray<InputSpec<MergeIntersectionObject<Entity>>>
     | (keyof Entity & string)
     | null
 
 type FullKeySpecSimpleShape = InputSpecShape | string | null
 
-type DiscriminatedSchema<
-    Entity extends Record<string, unknown>,
-    E extends Record<string, unknown> = UnionToObject<Entity>,
-> = {
+type DiscriminatedSchema<Entity, E> = {
     [key in keyof E]: E[key] extends PropertyKey
         ? {
               discriminator: key
@@ -190,9 +184,9 @@ type DiscriminatedSchema<
         : never
 }[keyof E]
 
-type FullKeySpec<Entity extends Record<string, unknown>> =
+type FullKeySpec<Entity> =
     | FullKeySpecSimple<Entity>
-    | DiscriminatedSchema<Entity>
+    | DiscriminatedSchema<Entity, MergeIntersectionObject<Entity>>
 
 type FullKeySpecShape = FullKeySpecSimpleShape | DiscriminatedSchemaShape
 
@@ -221,16 +215,18 @@ const createPathProxy = <T>(path = ''): T => {
 }
 
 const key =
-    <const Entity extends Record<string, unknown>>() =>
+    <const Entity>() =>
     <
         const Schema extends Record<
             string,
-            | InputSpec<Entity>[]
+            | InputSpec<MergeIntersectionObject<Entity>>[]
             | keyof Entity
             | {
                   discriminator: keyof Entity
                   spec: {
-                      [val in string]: InputSpec<Entity>[] | keyof Entity
+                      [val in string]:
+                          | InputSpec<MergeIntersectionObject<Entity>>[]
+                          | keyof Entity
                   }
               }
         >,
@@ -253,7 +249,7 @@ const key =
         if (case_ === undefined) {
             throw new Error(`Key ${key.toString()} not found in schema`)
         }
-        let structure: InputSpec<Entity>[]
+        let structure: InputSpec<MergeIntersectionObject<Entity>>[]
 
         if (Array.isArray(case_)) {
             structure = case_
@@ -323,12 +319,14 @@ const toEntry =
     <
         const Schema extends Record<
             string,
-            | InputSpec<Entity>[]
+            | InputSpec<MergeIntersectionObject<Entity>>[]
             | keyof Entity
             | {
                   discriminator: keyof Entity
                   spec: {
-                      [val in string]: InputSpec<Entity>[] | keyof Entity
+                      [val in string]:
+                          | InputSpec<MergeIntersectionObject<Entity>>[]
+                          | keyof Entity
                   }
               }
         >,
@@ -375,7 +373,7 @@ const fromEntry =
     }
 
 type ProcessSpecType<
-    Entity extends Record<string, unknown>,
+    Entity,
     Spec,
     Config extends SpecConfigShape,
 > = Spec extends string
@@ -407,7 +405,7 @@ type VariantType<Entity, K extends PropertyKey, V extends PropertyKey> = [
 
 // Flatten nested type computation
 type ProcessVariant<
-    Entity extends Record<string, unknown>,
+    Entity,
     K extends PropertyKey,
     V extends PropertyKey,
     Spec extends DiscriminatedSchemaShape,
@@ -424,7 +422,7 @@ type ProcessVariant<
 
 // Optimized attribute processing
 type OptimizedAttributes<
-    Entity extends Record<string, unknown>,
+    Entity,
     Spec,
     Config extends SpecConfigShape,
 > = Spec extends DiscriminatedSchemaShape
@@ -442,7 +440,7 @@ type OptimizedAttributes<
     : ProcessSpecType<Entity, Spec, Config>
 
 type ProcessKey<
-    Entity extends Record<string, unknown>,
+    Entity,
     Spec,
     Separator extends string,
     NullAs extends never | undefined = never,
@@ -465,7 +463,7 @@ type ProcessKey<
           : never
 
 type OptimizedBuildedKey<
-    NarrowEntity extends Record<string, unknown>,
+    NarrowEntity,
     Spec,
     Separator extends string,
     Config extends SpecConfigShape,
@@ -485,11 +483,7 @@ type OptimizedBuildedKey<
       }[Spec['discriminator']]
     : ProcessKey<NarrowEntity, Spec, Separator, undefined, Config, Attributes>
 
-type TableEntryDefinition<
-    Entity extends Record<string, unknown>,
-    Schema extends Record<string, FullKeySpecShape>,
-    Separator extends string,
-> = {
+type TableEntryDefinition<Entity, Schema, Separator extends string> = {
     toEntry: <const ExactEntity extends Exact<Entity, ExactEntity>>(
         item: ExactEntity,
     ) => ExactEntity extends infer E extends Entity
