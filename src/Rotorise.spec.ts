@@ -974,7 +974,7 @@ describe('DynamoDB Utils', () => {
                 {
                     discriminator: unknown
                 }
-            >,//['spec']['a2'],
+            >, //['spec']['a2'],
             string | null
         >['0']
 
