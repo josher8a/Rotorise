@@ -2,6 +2,7 @@ import {
     type CompositeKeyBuilder,
     type CompositeKeyParams,
     tableEntry,
+    TransformShape,
 } from './Rotorise'
 import { expect, test, describe, it } from 'vitest'
 import { attest } from '@ark/attest'
@@ -61,7 +62,7 @@ describe('DynamoDB Utils', () => {
                   >
               >
 
-        attest.instantiations([1911, 'instantiations'])
+        attest.instantiations([2012, 'instantiations'])
     })
 
     it('CompositeKeyBuilder', () => {
@@ -156,8 +157,36 @@ describe('DynamoDB Utils', () => {
                       | 'A#a2#B#2#C#TRANSFORM'
                   >
               >
+            | isTrue<
+                  Equal<
+                      CompositeKeyBuilder<
+                          | { a: 'a1'; b: 1; c: true; z: never }
+                          | { a: 'a2'; b: 2; c: false; z: never },
+                          [
+                              'a',
+                              'b',
+                              [
+                                  'c',
+                                  (c: boolean) => {
+                                      tag: 'TAG'
+                                      value: 'TRANSFORM'
+                                  },
+                              ],
+                          ],
+                          '#',
+                          3,
+                          true
+                      >,
+                      | 'A#a1'
+                      | 'A#a1#B#1'
+                      | 'A#a2'
+                      | 'A#a2#B#2'
+                      | 'A#a1#B#1#TAG#TRANSFORM'
+                      | 'A#a2#B#2#TAG#TRANSFORM'
+                  >
+              >
 
-        attest.instantiations([4113, 'instantiations'])
+        attest.instantiations([5593, 'instantiations'])
     })
 
     it('tableEntry', () => {
@@ -310,7 +339,7 @@ describe('DynamoDB Utils', () => {
             ),
         ).toBe(1)
 
-        attest.instantiations([12000, 'instantiations'])
+        attest.instantiations([11620, 'instantiations'])
     })
 
     test('path from infer then toString', () => {
@@ -346,7 +375,7 @@ describe('DynamoDB Utils', () => {
         )
         expect(testTableEntry.path().PK.toString()).toBe('PK')
 
-        attest.instantiations([1400, 'instantiations'])
+        attest.instantiations([1358, 'instantiations'])
     })
 
     test('table Entry with transform and discriminator ', () => {
@@ -376,10 +405,10 @@ describe('DynamoDB Utils', () => {
                               | 'b'
                               | 'c'
                               | 'z'
-                              | ['a', (key: 'a1' | 'a2') => unknown]
-                              | ['b', (key: 1n | 2) => unknown]
-                              | ['c', (key: true | 0) => unknown]
-                              | ['z', (key: 'never') => unknown]
+                              | ['a', (key: 'a1' | 'a2') => TransformShape]
+                              | ['b', (key: 1n | 2) => TransformShape]
+                              | ['c', (key: true | 0) => TransformShape]
+                              | ['z', (key: 'never') => TransformShape]
                           >
                         | null
                         | {
@@ -395,10 +424,21 @@ describe('DynamoDB Utils', () => {
                                             | 'b'
                                             | 'c'
                                             | 'z'
-                                            | ['a', (key: 'a1') => unknown]
-                                            | ['b', (key: 1n) => unknown]
-                                            | ['c', (key: true) => unknown]
-                                            | ['z', (key: 'never') => unknown]
+                                            | [
+                                                  'a',
+                                                  (key: 'a1') => TransformShape,
+                                              ]
+                                            | ['b', (key: 1n) => TransformShape]
+                                            | [
+                                                  'c',
+                                                  (key: true) => TransformShape,
+                                              ]
+                                            | [
+                                                  'z',
+                                                  (
+                                                      key: 'never',
+                                                  ) => TransformShape,
+                                              ]
                                         >
                                       | null
                                   a2:
@@ -411,10 +451,18 @@ describe('DynamoDB Utils', () => {
                                             | 'b'
                                             | 'c'
                                             | 'z'
-                                            | ['a', (key: 'a2') => unknown]
-                                            | ['b', (key: 2) => unknown]
-                                            | ['c', (key: 0) => unknown]
-                                            | ['z', (key: 'never') => unknown]
+                                            | [
+                                                  'a',
+                                                  (key: 'a2') => TransformShape,
+                                              ]
+                                            | ['b', (key: 2) => TransformShape]
+                                            | ['c', (key: 0) => TransformShape]
+                                            | [
+                                                  'z',
+                                                  (
+                                                      key: 'never',
+                                                  ) => TransformShape,
+                                              ]
                                         >
                                       | null
                               }
@@ -434,11 +482,28 @@ describe('DynamoDB Utils', () => {
                                             | 'z'
                                             | [
                                                   'a',
-                                                  (key: 'a1' | 'a2') => unknown,
+                                                  (
+                                                      key: 'a1' | 'a2',
+                                                  ) => TransformShape,
                                               ]
-                                            | ['b', (key: 2 | 1n) => unknown]
-                                            | ['c', (key: true | 0) => unknown]
-                                            | ['z', (key: 'never') => unknown]
+                                            | [
+                                                  'b',
+                                                  (
+                                                      key: 2 | 1n,
+                                                  ) => TransformShape,
+                                              ]
+                                            | [
+                                                  'c',
+                                                  (
+                                                      key: true | 0,
+                                                  ) => TransformShape,
+                                              ]
+                                            | [
+                                                  'z',
+                                                  (
+                                                      key: 'never',
+                                                  ) => TransformShape,
+                                              ]
                                         >
                                       | null
                               }
@@ -473,8 +538,10 @@ describe('DynamoDB Utils', () => {
                             'b',
                             [
                                 'c',
-                                (c: number | boolean) =>
-                                    c ? 'VERDADERO' : 'FALSO',
+                                (c: number | boolean) => ({
+                                    tag: 'NEW_TAG' as const,
+                                    value: c ? 'VERDADERO' as const : 'FALSO' as const,
+                                }),
                             ],
                         ],
                     },
@@ -503,7 +570,7 @@ describe('DynamoDB Utils', () => {
                   readonly PK: 'A-a1-B-1-C-VERDADERO' | 'A-a1-B-1-C-FALSO'
                   readonly SK: 1n
                   readonly GSI1PK: 1n
-                  readonly GSI1SK: 'A-a1-B-1-C-VERDADERO' | 'A-a1-B-1-C-FALSO'
+                  readonly GSI1SK: 'A-a1-B-1-NEW_TAG-VERDADERO' | 'A-a1-B-1-NEW_TAG-FALSO'
                   readonly GSI2PK: never
               })
             | ({
@@ -591,6 +658,17 @@ describe('DynamoDB Utils', () => {
         ).toBe('A-a1-B-1')
 
         expect(
+            testTableEntry.key(
+                'GSI1SK',
+                {
+                    a: 'a1',
+                    b: 1n,
+                    c: true,
+                },
+            ),
+        ).toBe('A-a1-B-1-NEW_TAG-VERDADERO')
+
+        expect(
             testTableEntry.key('GSI1SK', {
                 a: 'a2',
                 b: 2,
@@ -612,7 +690,7 @@ describe('DynamoDB Utils', () => {
             }),
         ).toBeUndefined()
 
-        attest.instantiations([60000, 'instantiations'])
+        attest.instantiations([64827, 'instantiations'])
     })
 
     test('real world example', () => {
@@ -828,7 +906,7 @@ describe('DynamoDB Utils', () => {
             { depth: 2 },
         ) satisfies 'TAG#A#ID2#yolo'
 
-        attest.instantiations([49000, 'instantiations'])
+        attest.instantiations([48910, 'instantiations'])
     })
 
     test('schema allows for nullish values if has transform', () => {
@@ -851,14 +929,14 @@ describe('DynamoDB Utils', () => {
                               | 'a'
                               | 'b'
                               | 'c'
-                              | ['a', (key: 'a1' | 'a2') => unknown]
-                              | ['b', (key: 1n | 2) => unknown]
-                              | ['c', (key: true | 0) => unknown]
+                              | ['a', (key: 'a1' | 'a2') => TransformShape]
+                              | ['b', (key: 1n | 2) => TransformShape]
+                              | ['c', (key: true | 0) => TransformShape]
                               | [
                                     'z',
                                     (
                                         key: 'never' | null | undefined,
-                                    ) => unknown,
+                                    ) => TransformShape,
                                 ]
                           >
                         | null
@@ -875,10 +953,21 @@ describe('DynamoDB Utils', () => {
                                             | 'b'
                                             | 'c'
                                             | 'z'
-                                            | ['a', (key: 'a1') => unknown]
-                                            | ['b', (key: 1n) => unknown]
-                                            | ['c', (key: true) => unknown]
-                                            | ['z', (key: 'never') => unknown]
+                                            | [
+                                                  'a',
+                                                  (key: 'a1') => TransformShape,
+                                              ]
+                                            | ['b', (key: 1n) => TransformShape]
+                                            | [
+                                                  'c',
+                                                  (key: true) => TransformShape,
+                                              ]
+                                            | [
+                                                  'z',
+                                                  (
+                                                      key: 'never',
+                                                  ) => TransformShape,
+                                              ]
                                         >
                                       | null
                                   a2:
@@ -890,9 +979,12 @@ describe('DynamoDB Utils', () => {
                                             | 'a'
                                             | 'b'
                                             | 'c'
-                                            | ['a', (key: 'a2') => unknown]
-                                            | ['b', (key: 2) => unknown]
-                                            | ['c', (key: 0) => unknown]
+                                            | [
+                                                  'a',
+                                                  (key: 'a2') => TransformShape,
+                                              ]
+                                            | ['b', (key: 2) => TransformShape]
+                                            | ['c', (key: 0) => TransformShape]
                                             | [
                                                   'z',
                                                   (
@@ -900,7 +992,7 @@ describe('DynamoDB Utils', () => {
                                                           | 'never'
                                                           | null
                                                           | undefined,
-                                                  ) => unknown,
+                                                  ) => TransformShape,
                                               ]
                                         >
                                       | null
@@ -989,8 +1081,8 @@ describe('DynamoDB Utils', () => {
                         | NonEmptyArray<
                               | 'a'
                               | 'b'
-                              | ['a', (key: 'a1' | 'a2') => unknown]
-                              | ['b', (key: 1n | 2) => unknown]
+                              | ['a', (key: 'a1' | 'a2') => TransformShape]
+                              | ['b', (key: 1n | 2) => TransformShape]
                           >
                         | null
                         | {
@@ -1004,11 +1096,16 @@ describe('DynamoDB Utils', () => {
                                             | 'a'
                                             | 'b'
                                             | 'extra'
-                                            | ['a', (key: 'a1') => unknown]
-                                            | ['b', (key: 1n) => unknown]
+                                            | [
+                                                  'a',
+                                                  (key: 'a1') => TransformShape,
+                                              ]
+                                            | ['b', (key: 1n) => TransformShape]
                                             | [
                                                   'extra',
-                                                  (key: 'extra') => unknown,
+                                                  (
+                                                      key: 'extra',
+                                                  ) => TransformShape,
                                               ]
                                         >
                                       | null
@@ -1018,8 +1115,11 @@ describe('DynamoDB Utils', () => {
                                       | NonEmptyArray<
                                             | 'a'
                                             | 'b'
-                                            | ['a', (key: 'a2') => unknown]
-                                            | ['b', (key: 2) => unknown]
+                                            | [
+                                                  'a',
+                                                  (key: 'a2') => TransformShape,
+                                              ]
+                                            | ['b', (key: 2) => TransformShape]
                                         >
                                       | null
                               }

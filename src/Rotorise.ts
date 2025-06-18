@@ -94,9 +94,16 @@ type Join<
 type ExtractPair<Entity, Spec> = Spec extends [
     infer Key extends string,
     // biome-ignore lint/suspicious/noExplicitAny: <explanation>
-    (...key: any[]) => infer Value extends joinable,
+    (...key: any[]) => infer Value,
 ]
-    ? [Uppercase<Key>, Value]
+    ? Value extends joinable
+        ? [Uppercase<Key>, Value]
+        : Value extends {
+                tag: infer Tag extends joinable
+                value: infer Value extends joinable
+            }
+          ? [Tag, Value]
+          : never
     : Spec extends keyof Entity & string
       ? [Uppercase<Spec>, Entity[Spec] & joinable]
       : never
@@ -124,6 +131,12 @@ type DiscriminatedSchemaShape = {
 
 // biome-ignore lint/suspicious/noExplicitAny: <explanation>
 type InputSpecShape = ([PropertyKey, (key: any) => unknown] | PropertyKey)[]
+export type TransformShape =
+    | {
+          tag: string
+          value: joinable
+      }
+    | joinable
 
 type TableEntryImpl<
     Entity,
@@ -153,7 +166,7 @@ export type TableEntry<
 
 type InputSpec<E> = {
     [key in keyof E]:
-        | [key, (key: E[key]) => unknown]
+        | [key, (key: E[key]) => TransformShape]
         | (undefined extends E[key] ? never : null extends E[key] ? never : key)
 }[keyof E]
 
@@ -196,7 +209,7 @@ const chainableNoOpProxy: unknown = new Proxy(() => chainableNoOpProxy, {
 
 const createPathProxy = <T>(path = ''): T => {
     return new Proxy(() => {}, {
-        get: (target, prop) => {
+        get: (_target, prop) => {
             if (typeof prop === 'string') {
                 if (prop === 'toString') {
                     return () => path
@@ -286,7 +299,7 @@ const key =
         if (config?.depth !== undefined) {
             structure = structure.slice(0, config.depth) as never
         }
-        const composite: string[] = []
+        const composite: joinable[] = []
 
         for (const keySpec of structure) {
             const [key, transform] = Array.isArray(keySpec)
@@ -294,14 +307,19 @@ const key =
                 : [keySpec]
 
             const value = attributes[key as keyof Attributes]
-            if (
-                (value !== undefined && value !== null && value !== '') ||
-                transform
-            ) {
+
+            if (transform) {
+                const transformed = transform(value as never)
+                if (typeof transformed === 'object' && transformed !== null) {
+                    composite.push(transformed.tag)
+                    composite.push(transformed.value)
+                } else {
+                    composite.push(key.toString().toUpperCase())
+                    composite.push(transformed)
+                }
+            } else if (value !== undefined && value !== null && value !== '') {
                 composite.push(key.toString().toUpperCase())
-                composite.push(
-                    `${transform ? transform(value as never) : value}`,
-                )
+                composite.push(value as joinable)
             } else if (config?.allowPartial) {
                 break
             } else {
