@@ -185,6 +185,33 @@ describe('DynamoDB Utils', () => {
                       | 'A#a2#B#2#TAG#TRANSFORM'
                   >
               >
+              | isTrue<
+                  Equal<
+                      CompositeKeyBuilder<
+                          | { a: 'a1'; b: 1; c: true; z: never }
+                          | { a: 'a2'; b: 2; c: false; z: never },
+                          [
+                              'a',
+                              'b',
+                              [
+                                  'c',
+                                  (c: boolean) => {
+                                      value: 'TRANSFORM'
+                                  },
+                              ],
+                          ],
+                          '#',
+                          3,
+                          true
+                      >,
+                      | 'A#a1'
+                      | 'A#a1#B#1'
+                      | 'A#a2'
+                      | 'A#a2#B#2'
+                      | 'A#a1#B#1#TRANSFORM'
+                      | 'A#a2#B#2#TRANSFORM'
+                  >
+              >
 
         attest.instantiations([5593, 'instantiations'])
     })

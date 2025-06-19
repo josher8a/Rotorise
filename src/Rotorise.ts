@@ -83,8 +83,8 @@ type Join<
           Separator,
           KeepIntermediate,
           Acc extends ''
-              ? `${Head[0]}${Separator}${Head[1]}`
-              : `${Acc}${Separator}${Head[0]}${Separator}${Head[1]}`,
+              ? [Head[0]] extends [never] ? `${Head[1]}` : `${Head[0]}${Separator}${Head[1]}`
+              : [Head[0]] extends [never] ? `${Acc}${Separator}${Head[1]}` : `${Acc}${Separator}${Head[0]}${Separator}${Head[1]}`,
           KeepIntermediate extends true
               ? AllAcc | (Acc extends '' ? never : Acc)
               : never
@@ -99,11 +99,16 @@ type ExtractPair<Entity, Spec> = Spec extends [
     ? Value extends joinable
         ? [Uppercase<Key>, Value]
         : Value extends {
-                tag: infer Tag extends joinable
+                tag: infer Tag extends string
                 value: infer Value extends joinable
             }
           ? [Tag, Value]
-          : never
+          : Value extends {
+                  tag?: undefined
+                  value: infer Value extends joinable
+              }
+            ? [never, Value]
+            : never
     : Spec extends keyof Entity & string
       ? [Uppercase<Spec>, Entity[Spec] & joinable]
       : never
@@ -133,7 +138,7 @@ type DiscriminatedSchemaShape = {
 type InputSpecShape = ([PropertyKey, (key: any) => unknown] | PropertyKey)[]
 export type TransformShape =
     | {
-          tag: string
+          tag?: string
           value: joinable
       }
     | joinable
@@ -311,7 +316,7 @@ const key =
             if (transform) {
                 const transformed = transform(value as never)
                 if (typeof transformed === 'object' && transformed !== null) {
-                    composite.push(transformed.tag)
+                    if(transformed.tag !== undefined) composite.push(transformed.tag)
                     composite.push(transformed.value)
                 } else {
                     composite.push(key.toString().toUpperCase())
