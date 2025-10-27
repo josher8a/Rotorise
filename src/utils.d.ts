@@ -35,8 +35,8 @@ export type Exact<ParameterType, InputType> = IsEqual<
 
 export type ValueOf<
     ObjectType,
-    ValueType extends keyof ObjectType = keyof ObjectType,
-> = ObjectType[ValueType]
+    ValueType = keyof ObjectType,
+> = ValueType extends keyof ObjectType ? ObjectType[ValueType] : never
 
 export type evaluateUnion<T> = T extends unknown
     ? { [K in keyof T]: T[K] } & unknown

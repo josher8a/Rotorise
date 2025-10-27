@@ -1,11 +1,11 @@
+import { attest } from '@ark/attest'
+import { describe, expect, it, test } from 'vitest'
 import {
     type CompositeKeyBuilder,
     type CompositeKeyParams,
+    type TransformShape,
     tableEntry,
-    TransformShape,
 } from './Rotorise'
-import { expect, test, describe, it } from 'vitest'
-import { attest } from '@ark/attest'
 import type { NonEmptyArray } from './utils'
 
 type Equal<T, U> = (<G>() => G extends T ? 1 : 2) extends <G>() => G extends U
@@ -185,7 +185,7 @@ describe('DynamoDB Utils', () => {
                       | 'A#a2#B#2#TAG#TRANSFORM'
                   >
               >
-              | isTrue<
+            | isTrue<
                   Equal<
                       CompositeKeyBuilder<
                           | { a: 'a1'; b: 1; c: true; z: never }
@@ -213,7 +213,7 @@ describe('DynamoDB Utils', () => {
                   >
               >
 
-        attest.instantiations([5593, 'instantiations'])
+        attest.instantiations([6653, 'instantiations'])
     })
 
     it('tableEntry', () => {
@@ -366,7 +366,7 @@ describe('DynamoDB Utils', () => {
             ),
         ).toBe(1)
 
-        attest.instantiations([11620, 'instantiations'])
+        attest.instantiations([11085, 'instantiations'])
     })
 
     test('path from infer then toString', () => {
@@ -567,7 +567,9 @@ describe('DynamoDB Utils', () => {
                                 'c',
                                 (c: number | boolean) => ({
                                     tag: 'NEW_TAG' as const,
-                                    value: c ? 'VERDADERO' as const : 'FALSO' as const,
+                                    value: c
+                                        ? ('VERDADERO' as const)
+                                        : ('FALSO' as const),
                                 }),
                             ],
                         ],
@@ -597,7 +599,9 @@ describe('DynamoDB Utils', () => {
                   readonly PK: 'A-a1-B-1-C-VERDADERO' | 'A-a1-B-1-C-FALSO'
                   readonly SK: 1n
                   readonly GSI1PK: 1n
-                  readonly GSI1SK: 'A-a1-B-1-NEW_TAG-VERDADERO' | 'A-a1-B-1-NEW_TAG-FALSO'
+                  readonly GSI1SK:
+                      | 'A-a1-B-1-NEW_TAG-VERDADERO'
+                      | 'A-a1-B-1-NEW_TAG-FALSO'
                   readonly GSI2PK: never
               })
             | ({
@@ -685,14 +689,11 @@ describe('DynamoDB Utils', () => {
         ).toBe('A-a1-B-1')
 
         expect(
-            testTableEntry.key(
-                'GSI1SK',
-                {
-                    a: 'a1',
-                    b: 1n,
-                    c: true,
-                },
-            ),
+            testTableEntry.key('GSI1SK', {
+                a: 'a1',
+                b: 1n,
+                c: true,
+            }),
         ).toBe('A-a1-B-1-NEW_TAG-VERDADERO')
 
         expect(
@@ -933,7 +934,7 @@ describe('DynamoDB Utils', () => {
             { depth: 2 },
         ) satisfies 'TAG#A#ID2#yolo'
 
-        attest.instantiations([48910, 'instantiations'])
+        attest.instantiations([38182, 'instantiations'])
     })
 
     test('schema allows for nullish values if has transform', () => {
