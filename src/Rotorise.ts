@@ -66,7 +66,7 @@ export type CompositeKeyBuilder<
     isPartial extends boolean = false,
 > = CompositeKeyBuilderImpl<Entity, Spec, Separator, Deep, isPartial>
 
-export type joinable = string | number | bigint | boolean | null | undefined
+type joinable = string | number | bigint | boolean | null | undefined
 type joinablePair = [joinable, joinable]
 
 type Join<
@@ -111,9 +111,9 @@ type ExtractPair<Entity, Spec> = Spec extends [
     infer Key extends string,
     // biome-ignore lint/suspicious/noExplicitAny: <explanation>
     (...key: any[]) => infer Value,
-    ...(infer Default)[],
+    ...unknown[],
 ]
-    ? ExtractHelper<Uppercase<Key>, Value | Default>
+    ? ExtractHelper<Uppercase<Key>, Value>
     : Spec extends keyof Entity & string
       ? [Uppercase<Spec>, Entity[Spec] & joinable]
       : never
@@ -180,7 +180,7 @@ type InputSpec<E> = {
               ? [
                     key,
                     (key: Exclude<E[key], undefined>) => TransformShape,
-                    NonNullable<joinable>,
+                     Exclude<E[key], undefined>,
                 ]
               : [key, (key: Exclude<E[key], undefined>) => TransformShape])
         | (undefined extends E[key] ? never : null extends E[key] ? never : key)

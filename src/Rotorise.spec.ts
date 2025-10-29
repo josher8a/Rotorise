@@ -3,7 +3,6 @@ import { describe, expect, it, test } from 'vitest'
 import {
     type CompositeKeyBuilder,
     type CompositeKeyParams,
-    type joinable,
     type TransformShape,
     tableEntry,
 } from './Rotorise'
@@ -959,7 +958,7 @@ describe('DynamoDB Utils', () => {
                               | [
                                     'z',
                                     (key: 'never' | null) => TransformShape,
-                                    NonNullable<joinable>,
+                                    'never' | null,
                                 ]
                           >
                         | null
@@ -1013,7 +1012,7 @@ describe('DynamoDB Utils', () => {
                                                   (
                                                       key: 'never' | null,
                                                   ) => TransformShape,
-                                                  NonNullable<joinable>,
+                                                  'never' | null,
                                               ]
                                         >
                                       | null
@@ -1030,7 +1029,7 @@ describe('DynamoDB Utils', () => {
                 PK: ['a', ['b', (x: 1n |  2)=> (x.toString())], 'c'],
                 SK: [
                     'c',
-                    ['z', (z: 'never' | null) => z ?? 'DEFAULT', 'DEFAULT'],
+                    ['z', (z: 'never' | null) => z ?? 'DEFAULT', null],
                 ],
                 GSIPK: 'z',
                 GSISK: {
@@ -1041,7 +1040,7 @@ describe('DynamoDB Utils', () => {
                             [
                                 'z',
                                 (z: 'never' | null) => z ?? 'DEFAULT',
-                                'DEFAULT_',
+                                'never',
                             ],
                         ],
                     },
@@ -1071,7 +1070,7 @@ describe('DynamoDB Utils', () => {
                   readonly PK: `A-a2-B-${string}-C-0`
                   readonly SK: 'C-0-Z-DEFAULT' | 'C-0-Z-never'
                   readonly GSIPK: 'never' | undefined
-                  readonly GSISK: 'Z-never' | 'Z-DEFAULT' | 'Z-DEFAULT_'
+                  readonly GSISK: 'Z-never' | 'Z-DEFAULT'
               })
 
         type expect_infer = isTrue<Equal<typeof testTableEntry.infer, entries>>
