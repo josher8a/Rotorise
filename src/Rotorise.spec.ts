@@ -3,6 +3,7 @@ import { describe, expect, it, test } from 'vitest'
 import {
     type CompositeKeyBuilder,
     type CompositeKeyParams,
+    type joinable,
     type TransformShape,
     tableEntry,
 } from './Rotorise'
@@ -17,11 +18,6 @@ type isTrue<T extends true> = T
 
 describe('DynamoDB Utils', () => {
     it('CompositeKeyParams', () => {
-        type t = CompositeKeyParams<
-            { a: string; b: number; c: boolean },
-            ['a', 'b', 'c']
-        >
-
         type test_CompositeKeyParams =
             | isTrue<
                   Equal<
@@ -962,9 +958,8 @@ describe('DynamoDB Utils', () => {
                               | ['c', (key: true | 0) => TransformShape]
                               | [
                                     'z',
-                                    (
-                                        key: 'never' | null | undefined,
-                                    ) => TransformShape,
+                                    (key: 'never' | null) => TransformShape,
+                                    NonNullable<joinable>,
                                 ]
                           >
                         | null
@@ -1016,11 +1011,9 @@ describe('DynamoDB Utils', () => {
                                             | [
                                                   'z',
                                                   (
-                                                      key:
-                                                          | 'never'
-                                                          | null
-                                                          | undefined,
+                                                      key: 'never' | null,
                                                   ) => TransformShape,
+                                                  NonNullable<joinable>,
                                               ]
                                         >
                                       | null
@@ -1034,12 +1027,25 @@ describe('DynamoDB Utils', () => {
 
         const testTableEntry = base(
             {
-                PK: ['a', 'b', 'c'],
+                PK: ['a', ['b', (x: 1n |  2)=> (x.toString())], 'c'],
                 SK: [
                     'c',
-                    ['z', (z: 'never' | undefined | null) => z ?? 'DEFAULT'],
+                    ['z', (z: 'never' | null) => z ?? 'DEFAULT', 'DEFAULT'],
                 ],
                 GSIPK: 'z',
+                GSISK: {
+                    discriminator: 'a',
+                    spec: {
+                        a1: ['z', ['z', (z: 'never') => z ?? 'DEFAULT']],
+                        a2: [
+                            [
+                                'z',
+                                (z: 'never' | null) => z ?? 'DEFAULT',
+                                'DEFAULT_',
+                            ],
+                        ],
+                    },
+                },
             },
             '-',
         )
@@ -1051,9 +1057,10 @@ describe('DynamoDB Utils', () => {
                   c: true
                   z: 'never'
               } & {
-                  readonly PK: 'A-a1-B-1-C-true'
+                  readonly PK: `A-a1-B-${string}-C-true`
                   readonly SK: 'C-true-Z-never' | 'C-true-Z-DEFAULT'
                   readonly GSIPK: 'never'
+                  readonly GSISK: 'Z-never-Z-never'
               })
             | ({
                   a: 'a2'
@@ -1061,9 +1068,10 @@ describe('DynamoDB Utils', () => {
                   c: 0
                   z?: 'never' | null
               } & {
-                  readonly PK: 'A-a2-B-2-C-0'
+                  readonly PK: `A-a2-B-${string}-C-0`
                   readonly SK: 'C-0-Z-DEFAULT' | 'C-0-Z-never'
                   readonly GSIPK: 'never' | undefined
+                  readonly GSISK: 'Z-never' | 'Z-DEFAULT' | 'Z-DEFAULT_'
               })
 
         type expect_infer = isTrue<Equal<typeof testTableEntry.infer, entries>>
@@ -1081,22 +1089,19 @@ describe('DynamoDB Utils', () => {
                 z: 'never',
             }),
         ).toBe('C-0-Z-never')
+
+        expect( // on partial no transform if missing
+            testTableEntry.key('PK', {
+                c: 0,
+                a: 'a2',
+            }, {allowPartial: true}),
+        ).toBe('A-a2')
     })
 
     test('heterogenous keys schema', () => {
         const base = tableEntry<
             { a: 'a1'; b: 1n; extra: 'extra' } | { a: 'a2'; b: 2 }
         >()
-
-        type t = Exclude<
-            Exclude<
-                Parameters<typeof base>[0][string],
-                {
-                    discriminator: unknown
-                }
-            >, //['spec']['a2'],
-            string | null
-        >['0']
 
         type expect_schema = isTrue<
             Equal<

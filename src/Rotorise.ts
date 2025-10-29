@@ -66,7 +66,7 @@ export type CompositeKeyBuilder<
     isPartial extends boolean = false,
 > = CompositeKeyBuilderImpl<Entity, Spec, Separator, Deep, isPartial>
 
-type joinable = string | number | bigint | boolean | null | undefined
+export type joinable = string | number | bigint | boolean | null | undefined
 type joinablePair = [joinable, joinable]
 
 type Join<
@@ -93,24 +93,27 @@ type Join<
       >
     : AllAcc | Acc
 
+type ExtractHelper<Key, Value> = Value extends joinable
+    ? [Key, Value]
+    : Value extends {
+            tag: infer Tag extends string
+            value: infer Value extends joinable
+        }
+      ? [Tag, Value]
+      : Value extends {
+              tag?: undefined
+              value: infer Value extends joinable
+          }
+        ? [never, Value]
+        : never
+
 type ExtractPair<Entity, Spec> = Spec extends [
     infer Key extends string,
     // biome-ignore lint/suspicious/noExplicitAny: <explanation>
     (...key: any[]) => infer Value,
+    ...(infer Default)[],
 ]
-    ? Value extends joinable
-        ? [Uppercase<Key>, Value]
-        : Value extends {
-                tag: infer Tag extends string
-                value: infer Value extends joinable
-            }
-          ? [Tag, Value]
-          : Value extends {
-                  tag?: undefined
-                  value: infer Value extends joinable
-              }
-            ? [never, Value]
-            : never
+    ? ExtractHelper<Uppercase<Key>, Value | Default>
     : Spec extends keyof Entity & string
       ? [Uppercase<Spec>, Entity[Spec] & joinable]
       : never
@@ -136,8 +139,9 @@ type DiscriminatedSchemaShape = {
     }
 }
 
-// biome-ignore lint/suspicious/noExplicitAny: ggg
-type InputSpecShape = ([PropertyKey, (key: any) => unknown] | PropertyKey)[]
+type InputSpecShape =
+    // biome-ignore lint/suspicious/noExplicitAny: ggg
+    ([PropertyKey, (key: any) => unknown, ...unknown[]] | PropertyKey)[]
 export type TransformShape =
     | {
           tag?: string
@@ -172,7 +176,13 @@ export type TableEntry<
 
 type InputSpec<E> = {
     [key in keyof E]:
-        | [key, (key: E[key]) => TransformShape]
+        | (undefined extends E[key]
+              ? [
+                    key,
+                    (key: Exclude<E[key], undefined>) => TransformShape,
+                    NonNullable<joinable>,
+                ]
+              : [key, (key: Exclude<E[key], undefined>) => TransformShape])
         | (undefined extends E[key] ? never : null extends E[key] ? never : key)
 }[keyof E]
 
@@ -308,13 +318,13 @@ const key =
         const composite: joinable[] = []
 
         for (const keySpec of structure) {
-            const [key, transform] = Array.isArray(keySpec)
+            const [key, transform, Default] = Array.isArray(keySpec)
                 ? keySpec
                 : [keySpec]
 
-            const value = attributes[key as keyof Attributes]
+            const value = attributes[key as keyof Attributes] ?? Default
 
-            if (transform) {
+            if (transform && value !== undefined) {
                 const transformed = transform(value as never)
                 if (typeof transformed === 'object' && transformed !== null) {
                     if (transformed.tag !== undefined)
@@ -493,17 +503,18 @@ type OptimizedBuildedKey<
     Separator extends string,
     Config extends SpecConfigShape,
     Attributes,
-> = Entity extends unknown ? Spec extends DiscriminatedSchemaShape
-    ? ProcessKey<
-          Entity,
-          ValueOf<Spec['spec'], ValueOf<Entity, Spec['discriminator']>>,
-          Separator,
-          undefined,
-          Config,
-          Attributes
-      >
-    : ProcessKey<Entity, Spec, Separator, undefined, Config, Attributes>
-: never
+> = Entity extends unknown
+    ? Spec extends DiscriminatedSchemaShape
+        ? ProcessKey<
+              Entity,
+              ValueOf<Spec['spec'], ValueOf<Entity, Spec['discriminator']>>,
+              Separator,
+              undefined,
+              Config,
+              Attributes
+          >
+        : ProcessKey<Entity, Spec, Separator, undefined, Config, Attributes>
+    : never
 
 type TableEntryDefinition<Entity, Schema, Separator extends string> = {
     toEntry: <const ExactEntity extends Exact<Entity, ExactEntity>>(
