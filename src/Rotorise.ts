@@ -2,12 +2,12 @@ import type {
     DistributiveOmit,
     DistributivePick,
     Exact,
-    evaluate,
     MergeIntersectionObject,
     NonEmptyArray,
     Replace,
     SliceFromStart,
     ValueOf,
+    evaluate,
 } from './utils'
 
 export type CompositeKeyParamsImpl<
@@ -180,7 +180,7 @@ type InputSpec<E> = {
               ? [
                     key,
                     (key: Exclude<E[key], undefined>) => TransformShape,
-                     Exclude<E[key], undefined>,
+                    Exclude<E[key], undefined>,
                 ]
               : [key, (key: Exclude<E[key], undefined>) => TransformShape])
         | (undefined extends E[key] ? never : null extends E[key] ? never : key)
@@ -266,7 +266,11 @@ const key =
     ) =>
     <
         const Key extends keyof Schema,
-        const Config extends { depth?: number; allowPartial?: boolean },
+        const Config extends {
+            depth?: number
+            allowPartial?: boolean
+            enforceBoundary?: boolean
+        },
         const Attributes extends Partial<Entity>,
     >(
         key: Key,
@@ -312,6 +316,8 @@ const key =
             return value as never
         }
 
+        const fullLength = structure.length
+
         if (config?.depth !== undefined) {
             structure = structure.slice(0, config.depth) as never
         }
@@ -344,6 +350,10 @@ const key =
                     `buildCompositeKey: Attribute ${key.toString()} not found in ${JSON.stringify(attributes)}`,
                 )
             }
+        }
+
+        if (config?.enforceBoundary && fullLength * 2 > composite.length) {
+            composite.push('')
         }
 
         return composite.join(separator) as never
@@ -429,6 +439,7 @@ type SpecConfig<Spec> = Spec extends string ? never : SpecConfigShape
 type SpecConfigShape = {
     depth?: number
     allowPartial?: boolean
+    enforceBoundary?: boolean
 }
 
 // Pre-compute discriminated variant types
@@ -529,7 +540,11 @@ type TableEntryDefinition<Entity, Schema, Separator extends string> = {
         const Attributes extends OptimizedAttributes<Entity, Spec, Config_>,
         Spec = Schema[Key],
         Config_ extends SpecConfigShape = [SpecConfigShape] extends [Config] // exclude undefined param
-            ? { depth?: undefined; allowPartial?: undefined }
+            ? {
+                  depth?: undefined
+                  allowPartial?: undefined
+                  enforceBoundary?: boolean
+              }
             : Config,
     >(
         key: Key,

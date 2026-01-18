@@ -265,6 +265,22 @@ describe('DynamoDB Utils', () => {
             ),
         ).toBe('A-a1-B-1')
 
+        expect(
+            testTableEntry.key(
+                'PK',
+                {
+                    a: 'a1',
+                    b: 1,
+                    c: true,
+                },
+                {
+                    depth: 2,
+                    allowPartial: false,
+                    enforceBoundary: true,
+                },
+            ),
+        ).toBe('A-a1-B-1-')
+
         const entity = {
             a: 'a1',
             b: 1,
@@ -1026,11 +1042,8 @@ describe('DynamoDB Utils', () => {
 
         const testTableEntry = base(
             {
-                PK: ['a', ['b', (x: 1n |  2)=> (x.toString())], 'c'],
-                SK: [
-                    'c',
-                    ['z', (z: 'never' | null) => z ?? 'DEFAULT', null],
-                ],
+                PK: ['a', ['b', (x: 1n | 2) => x.toString()], 'c'],
+                SK: ['c', ['z', (z: 'never' | null) => z ?? 'DEFAULT', null]],
                 GSIPK: 'z',
                 GSISK: {
                     discriminator: 'a',
@@ -1089,11 +1102,16 @@ describe('DynamoDB Utils', () => {
             }),
         ).toBe('C-0-Z-never')
 
-        expect( // on partial no transform if missing
-            testTableEntry.key('PK', {
-                c: 0,
-                a: 'a2',
-            }, {allowPartial: true}),
+        expect(
+            // on partial no transform if missing
+            testTableEntry.key(
+                'PK',
+                {
+                    c: 0,
+                    a: 'a2',
+                },
+                { allowPartial: true },
+            ),
         ).toBe('A-a2')
     })
 
