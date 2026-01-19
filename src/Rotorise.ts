@@ -542,8 +542,8 @@ type OptimizedBuildedKey<
     : never
 
 type TableEntryDefinition<Entity, Schema, Separator extends string> = {
-    toEntry: <const ExactEntity extends Exact<Entity, ExactEntity>>(
-        item: ExactEntity,
+    toEntry: <const ExactEntity>(
+        item: Exact<Entity, ExactEntity>,
     ) => TableEntryImpl<ExactEntity, Schema, Separator>
     fromEntry: <const Entry extends TableEntryImpl<Entity, Schema, Separator>>(
         entry: Entry,

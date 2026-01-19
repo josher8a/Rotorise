@@ -9,29 +9,10 @@ export type IsEqual<T, U> = (<G>() => G extends T ? 1 : 2) extends <
 
 export type ArrayElement<T> = T extends readonly unknown[] ? T[0] : never
 
-export type ExactObject<ParameterType, InputType> = {
-    [Key in keyof ParameterType]: Exact<
-        ParameterType[Key],
-        Key extends keyof InputType ? InputType[Key] : never
-    >
-} & Record<Exclude<keyof InputType, KeysOfUnion<ParameterType>>, never>
-
-export type Exact<ParameterType, InputType> = IsEqual<
-    ParameterType,
-    InputType
-> extends true
-    ? ParameterType
-    : // Convert union of array to array of union: A[] & B[] => (A & B)[]
-      ParameterType extends unknown[]
-      ? Array<Exact<ArrayElement<ParameterType>, ArrayElement<InputType>>>
-      : // In TypeScript, Array is a subtype of ReadonlyArray, so always test Array before ReadonlyArray.
-        ParameterType extends readonly unknown[]
-        ? ReadonlyArray<
-              Exact<ArrayElement<ParameterType>, ArrayElement<InputType>>
-          >
-        : ParameterType extends object
-          ? ExactObject<ParameterType, InputType>
-          : ParameterType
+// Lighter Exact implementation
+export type Exact<Shape, Candidate> = Candidate & {
+    [K in keyof Candidate]: K extends keyof Shape ? Candidate[K] : never
+}
 
 export type ValueOf<
     ObjectType,

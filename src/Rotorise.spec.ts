@@ -377,7 +377,7 @@ describe('DynamoDB Utils', () => {
             ),
         ).toBe(1)
 
-        attest.instantiations([9615, 'instantiations'])
+        attest.instantiations([8114, 'instantiations'])
     })
 
     test('path from infer then toString', () => {
