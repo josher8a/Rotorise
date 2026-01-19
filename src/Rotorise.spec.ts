@@ -19,43 +19,43 @@ describe('DynamoDB Utils', () => {
     it('CompositeKeyParams', () => {
         type test_CompositeKeyParams =
             | isTrue<
-                Equal<
-                    CompositeKeyParams<
-                        { a: string; b: number; c: boolean },
-                        ['a', 'b', 'c']
-                    >,
-                    { a: string; b?: number; c?: boolean }
-                >
-            >
+                  Equal<
+                      CompositeKeyParams<
+                          { a: string; b: number; c: boolean },
+                          ['a', 'b', 'c']
+                      >,
+                      { a: string; b?: number; c?: boolean }
+                  >
+              >
             | isTrue<
-                Equal<
-                    CompositeKeyParams<
-                        { a: string; b: number; c: boolean },
-                        ['a', 'b', ['c', (c: boolean) => 'TRANSFORM']]
-                    >,
-                    { a: string; b?: number; c?: boolean }
-                >
-            >
+                  Equal<
+                      CompositeKeyParams<
+                          { a: string; b: number; c: boolean },
+                          ['a', 'b', ['c', (c: boolean) => 'TRANSFORM']]
+                      >,
+                      { a: string; b?: number; c?: boolean }
+                  >
+              >
             | isTrue<
-                Equal<
-                    CompositeKeyParams<
-                        { a: string; b: number; c: boolean },
-                        ['a', 'b', ['c', (c: boolean) => 'TRANSFORM']],
-                        2
-                    >,
-                    { a: string; b: number; c?: boolean }
-                >
-            >
+                  Equal<
+                      CompositeKeyParams<
+                          { a: string; b: number; c: boolean },
+                          ['a', 'b', ['c', (c: boolean) => 'TRANSFORM']],
+                          2
+                      >,
+                      { a: string; b: number; c?: boolean }
+                  >
+              >
             | isTrue<
-                Equal<
-                    CompositeKeyParams<
-                        { a: string; b: number; c: boolean },
-                        ['a', 'b', ['c', (c: boolean) => 'TRANSFORM']],
-                        number
-                    >,
-                    { a: string; b?: number; c?: boolean }
-                >
-            >
+                  Equal<
+                      CompositeKeyParams<
+                          { a: string; b: number; c: boolean },
+                          ['a', 'b', ['c', (c: boolean) => 'TRANSFORM']],
+                          number
+                      >,
+                      { a: string; b?: number; c?: boolean }
+                  >
+              >
 
         attest.instantiations([1924, 'instantiations'])
     })
@@ -63,150 +63,150 @@ describe('DynamoDB Utils', () => {
     it('CompositeKeyBuilder', () => {
         type test_CompositeKeyBuilder =
             | isTrue<
-                Equal<
-                    CompositeKeyBuilder<
-                        { a: string; b: number; c: boolean },
-                        ['a', 'b', 'c']
-                    >,
-                    `A#${string}#B#${number}#C#${boolean}`
-                >
-            >
+                  Equal<
+                      CompositeKeyBuilder<
+                          { a: string; b: number; c: boolean },
+                          ['a', 'b', 'c']
+                      >,
+                      `A#${string}#B#${number}#C#${boolean}`
+                  >
+              >
             | isTrue<
-                Equal<
-                    CompositeKeyBuilder<
-                        | { a: 'a1'; b: 1; c: true; z: never }
-                        | { a: 'a2'; b: 2; c: true; z: never },
-                        ['a', 'b']
-                    >,
-                    `A#${'a1'}#B#${1}` | `A#${'a2'}#B#${2}`
-                >
-            >
+                  Equal<
+                      CompositeKeyBuilder<
+                          | { a: 'a1'; b: 1; c: true; z: never }
+                          | { a: 'a2'; b: 2; c: true; z: never },
+                          ['a', 'b']
+                      >,
+                      `A#${'a1'}#B#${1}` | `A#${'a2'}#B#${2}`
+                  >
+              >
             | isTrue<
-                Equal<
-                    CompositeKeyBuilder<
-                        { a: string; b: number; c: boolean },
-                        ['a', 'b', 'c'],
-                        '-'
-                    >,
-                    `A-${string}-B-${number}-C-${boolean}`
-                >
-            >
+                  Equal<
+                      CompositeKeyBuilder<
+                          { a: string; b: number; c: boolean },
+                          ['a', 'b', 'c'],
+                          '-'
+                      >,
+                      `A-${string}-B-${number}-C-${boolean}`
+                  >
+              >
             | isTrue<
-                Equal<
-                    CompositeKeyBuilder<
-                        { a: string; b: number; c: boolean },
-                        ['a', 'b', 'c'],
-                        '-',
-                        2
-                    >,
-                    `A-${string}-B-${number}`
-                >
-            >
+                  Equal<
+                      CompositeKeyBuilder<
+                          { a: string; b: number; c: boolean },
+                          ['a', 'b', 'c'],
+                          '-',
+                          2
+                      >,
+                      `A-${string}-B-${number}`
+                  >
+              >
             | isTrue<
-                Equal<
-                    CompositeKeyBuilder<
-                        { a: string; b: number; c: boolean },
-                        ['a', 'b', 'c'],
-                        '-',
-                        3,
-                        true
-                    >,
-                    | `A-${string}`
-                    | `A-${string}-B-${number}`
-                    | `A-${string}-B-${number}-C-${boolean}`
-                >
-            >
+                  Equal<
+                      CompositeKeyBuilder<
+                          { a: string; b: number; c: boolean },
+                          ['a', 'b', 'c'],
+                          '-',
+                          3,
+                          true
+                      >,
+                      | `A-${string}`
+                      | `A-${string}-B-${number}`
+                      | `A-${string}-B-${number}-C-${boolean}`
+                  >
+              >
             | isTrue<
-                Equal<
-                    CompositeKeyBuilder<
-                        | { a: 'a1'; b: 1; c: true; z: never }
-                        | { a: 'a2'; b: 2; c: false; z: never },
-                        ['a', 'b', 'c'],
-                        '#',
-                        3,
-                        true
-                    >,
-                    | 'A#a1'
-                    | 'A#a1#B#1'
-                    | 'A#a1#B#1#C#true'
-                    | 'A#a2'
-                    | 'A#a2#B#2'
-                    | 'A#a2#B#2#C#false'
-                >
-            >
+                  Equal<
+                      CompositeKeyBuilder<
+                          | { a: 'a1'; b: 1; c: true; z: never }
+                          | { a: 'a2'; b: 2; c: false; z: never },
+                          ['a', 'b', 'c'],
+                          '#',
+                          3,
+                          true
+                      >,
+                      | 'A#a1'
+                      | 'A#a1#B#1'
+                      | 'A#a1#B#1#C#true'
+                      | 'A#a2'
+                      | 'A#a2#B#2'
+                      | 'A#a2#B#2#C#false'
+                  >
+              >
             | isTrue<
-                Equal<
-                    CompositeKeyBuilder<
-                        | { a: 'a1'; b: 1; c: true; z: never }
-                        | { a: 'a2'; b: 2; c: false; z: never },
-                        ['a', 'b', ['c', (c: boolean) => 'TRANSFORM']],
-                        '#',
-                        3,
-                        true
-                    >,
-                    | 'A#a1'
-                    | 'A#a1#B#1'
-                    | 'A#a2'
-                    | 'A#a2#B#2'
-                    | 'A#a1#B#1#C#TRANSFORM'
-                    | 'A#a2#B#2#C#TRANSFORM'
-                >
-            >
+                  Equal<
+                      CompositeKeyBuilder<
+                          | { a: 'a1'; b: 1; c: true; z: never }
+                          | { a: 'a2'; b: 2; c: false; z: never },
+                          ['a', 'b', ['c', (c: boolean) => 'TRANSFORM']],
+                          '#',
+                          3,
+                          true
+                      >,
+                      | 'A#a1'
+                      | 'A#a1#B#1'
+                      | 'A#a2'
+                      | 'A#a2#B#2'
+                      | 'A#a1#B#1#C#TRANSFORM'
+                      | 'A#a2#B#2#C#TRANSFORM'
+                  >
+              >
             | isTrue<
-                Equal<
-                    CompositeKeyBuilder<
-                        | { a: 'a1'; b: 1; c: true; z: never }
-                        | { a: 'a2'; b: 2; c: false; z: never },
-                        [
-                            'a',
-                            'b',
-                            [
-                                'c',
-                                (c: boolean) => {
-                                    tag: 'TAG'
-                                    value: 'TRANSFORM'
-                                },
-                            ],
-                        ],
-                        '#',
-                        3,
-                        true
-                    >,
-                    | 'A#a1'
-                    | 'A#a1#B#1'
-                    | 'A#a2'
-                    | 'A#a2#B#2'
-                    | 'A#a1#B#1#TAG#TRANSFORM'
-                    | 'A#a2#B#2#TAG#TRANSFORM'
-                >
-            >
+                  Equal<
+                      CompositeKeyBuilder<
+                          | { a: 'a1'; b: 1; c: true; z: never }
+                          | { a: 'a2'; b: 2; c: false; z: never },
+                          [
+                              'a',
+                              'b',
+                              [
+                                  'c',
+                                  (c: boolean) => {
+                                      tag: 'TAG'
+                                      value: 'TRANSFORM'
+                                  },
+                              ],
+                          ],
+                          '#',
+                          3,
+                          true
+                      >,
+                      | 'A#a1'
+                      | 'A#a1#B#1'
+                      | 'A#a2'
+                      | 'A#a2#B#2'
+                      | 'A#a1#B#1#TAG#TRANSFORM'
+                      | 'A#a2#B#2#TAG#TRANSFORM'
+                  >
+              >
             | isTrue<
-                Equal<
-                    CompositeKeyBuilder<
-                        | { a: 'a1'; b: 1; c: true; z: never }
-                        | { a: 'a2'; b: 2; c: false; z: never },
-                        [
-                            'a',
-                            'b',
-                            [
-                                'c',
-                                (c: boolean) => {
-                                    value: 'TRANSFORM'
-                                },
-                            ],
-                        ],
-                        '#',
-                        3,
-                        true
-                    >,
-                    | 'A#a1'
-                    | 'A#a1#B#1'
-                    | 'A#a2'
-                    | 'A#a2#B#2'
-                    | 'A#a1#B#1#TRANSFORM'
-                    | 'A#a2#B#2#TRANSFORM'
-                >
-            >
+                  Equal<
+                      CompositeKeyBuilder<
+                          | { a: 'a1'; b: 1; c: true; z: never }
+                          | { a: 'a2'; b: 2; c: false; z: never },
+                          [
+                              'a',
+                              'b',
+                              [
+                                  'c',
+                                  (c: boolean) => {
+                                      value: 'TRANSFORM'
+                                  },
+                              ],
+                          ],
+                          '#',
+                          3,
+                          true
+                      >,
+                      | 'A#a1'
+                      | 'A#a1#B#1'
+                      | 'A#a2'
+                      | 'A#a2#B#2'
+                      | 'A#a1#B#1#TRANSFORM'
+                      | 'A#a2#B#2#TRANSFORM'
+                  >
+              >
 
         attest.instantiations([5780, 'instantiations'])
     })
@@ -230,23 +230,23 @@ describe('DynamoDB Utils', () => {
 
         type entries =
             | ({
-                a: 'a1'
-                b: 1
-                c: true
-                z: 'never'
-            } & {
-                readonly PK: 'A-a1-B-1-C-true'
-                readonly SK: 1
-            })
+                  a: 'a1'
+                  b: 1
+                  c: true
+                  z: 'never'
+              } & {
+                  readonly PK: 'A-a1-B-1-C-true'
+                  readonly SK: 1
+              })
             | ({
-                a: 'a2'
-                b: 2
-                c: true
-                z: 'never'
-            } & {
-                readonly PK: 'A-a2-B-2-C-true'
-                readonly SK: 2
-            })
+                  a: 'a2'
+                  b: 2
+                  c: true
+                  z: 'never'
+              } & {
+                  readonly PK: 'A-a2-B-2-C-true'
+                  readonly SK: 2
+              })
 
         attest<entries>(testTableEntry.infer)
 
@@ -439,113 +439,113 @@ describe('DynamoDB Utils', () => {
                         | 'c'
                         | 'z'
                         | NonEmptyArray<
-                            | 'a'
-                            | 'b'
-                            | 'c'
-                            | 'z'
-                            | ['a', (key: 'a1' | 'a2') => TransformShape]
-                            | ['b', (key: 1n | 2) => TransformShape]
-                            | ['c', (key: true | 0) => TransformShape]
-                            | ['z', (key: 'never') => TransformShape]
-                        >
+                              | 'a'
+                              | 'b'
+                              | 'c'
+                              | 'z'
+                              | ['a', (key: 'a1' | 'a2') => TransformShape]
+                              | ['b', (key: 1n | 2) => TransformShape]
+                              | ['c', (key: true | 0) => TransformShape]
+                              | ['z', (key: 'never') => TransformShape]
+                          >
                         | null
                         | {
-                            discriminator: 'a'
-                            spec: {
-                                a1:
-                                | 'a'
-                                | 'b'
-                                | 'c'
-                                | 'z'
-                                | NonEmptyArray<
-                                    | 'a'
-                                    | 'b'
-                                    | 'c'
-                                    | 'z'
-                                    | [
-                                        'a',
-                                        (key: 'a1') => TransformShape,
-                                    ]
-                                    | ['b', (key: 1n) => TransformShape]
-                                    | [
-                                        'c',
-                                        (key: true) => TransformShape,
-                                    ]
-                                    | [
-                                        'z',
-                                        (
-                                            key: 'never',
-                                        ) => TransformShape,
-                                    ]
-                                >
-                                | null
-                                a2:
-                                | 'a'
-                                | 'b'
-                                | 'c'
-                                | 'z'
-                                | NonEmptyArray<
-                                    | 'a'
-                                    | 'b'
-                                    | 'c'
-                                    | 'z'
-                                    | [
-                                        'a',
-                                        (key: 'a2') => TransformShape,
-                                    ]
-                                    | ['b', (key: 2) => TransformShape]
-                                    | ['c', (key: 0) => TransformShape]
-                                    | [
-                                        'z',
-                                        (
-                                            key: 'never',
-                                        ) => TransformShape,
-                                    ]
-                                >
-                                | null
-                            }
-                        }
+                              discriminator: 'a'
+                              spec: {
+                                  a1:
+                                      | 'a'
+                                      | 'b'
+                                      | 'c'
+                                      | 'z'
+                                      | NonEmptyArray<
+                                            | 'a'
+                                            | 'b'
+                                            | 'c'
+                                            | 'z'
+                                            | [
+                                                  'a',
+                                                  (key: 'a1') => TransformShape,
+                                              ]
+                                            | ['b', (key: 1n) => TransformShape]
+                                            | [
+                                                  'c',
+                                                  (key: true) => TransformShape,
+                                              ]
+                                            | [
+                                                  'z',
+                                                  (
+                                                      key: 'never',
+                                                  ) => TransformShape,
+                                              ]
+                                        >
+                                      | null
+                                  a2:
+                                      | 'a'
+                                      | 'b'
+                                      | 'c'
+                                      | 'z'
+                                      | NonEmptyArray<
+                                            | 'a'
+                                            | 'b'
+                                            | 'c'
+                                            | 'z'
+                                            | [
+                                                  'a',
+                                                  (key: 'a2') => TransformShape,
+                                              ]
+                                            | ['b', (key: 2) => TransformShape]
+                                            | ['c', (key: 0) => TransformShape]
+                                            | [
+                                                  'z',
+                                                  (
+                                                      key: 'never',
+                                                  ) => TransformShape,
+                                              ]
+                                        >
+                                      | null
+                              }
+                          }
                         | {
-                            discriminator: 'z'
-                            spec: {
-                                never:
-                                | 'a'
-                                | 'b'
-                                | 'c'
-                                | 'z'
-                                | NonEmptyArray<
-                                    | 'a'
-                                    | 'b'
-                                    | 'c'
-                                    | 'z'
-                                    | [
-                                        'a',
-                                        (
-                                            key: 'a1' | 'a2',
-                                        ) => TransformShape,
-                                    ]
-                                    | [
-                                        'b',
-                                        (
-                                            key: 2 | 1n,
-                                        ) => TransformShape,
-                                    ]
-                                    | [
-                                        'c',
-                                        (
-                                            key: true | 0,
-                                        ) => TransformShape,
-                                    ]
-                                    | [
-                                        'z',
-                                        (
-                                            key: 'never',
-                                        ) => TransformShape,
-                                    ]
-                                >
-                                | null
-                            }
-                        }
+                              discriminator: 'z'
+                              spec: {
+                                  never:
+                                      | 'a'
+                                      | 'b'
+                                      | 'c'
+                                      | 'z'
+                                      | NonEmptyArray<
+                                            | 'a'
+                                            | 'b'
+                                            | 'c'
+                                            | 'z'
+                                            | [
+                                                  'a',
+                                                  (
+                                                      key: 'a1' | 'a2',
+                                                  ) => TransformShape,
+                                              ]
+                                            | [
+                                                  'b',
+                                                  (
+                                                      key: 2 | 1n,
+                                                  ) => TransformShape,
+                                              ]
+                                            | [
+                                                  'c',
+                                                  (
+                                                      key: true | 0,
+                                                  ) => TransformShape,
+                                              ]
+                                            | [
+                                                  'z',
+                                                  (
+                                                      key: 'never',
+                                                  ) => TransformShape,
+                                              ]
+                                        >
+                                      | null
+                              }
+                          }
                     >,
                     separator?: string | undefined,
                 ]
@@ -602,31 +602,31 @@ describe('DynamoDB Utils', () => {
 
         type entries =
             | ({
-                a: 'a1'
-                b: 1n
-                c: true
-                z: 'never'
-            } & {
-                readonly PK: 'A-a1-B-1-C-VERDADERO' | 'A-a1-B-1-C-FALSO'
-                readonly SK: 1n
-                readonly GSI1PK: 1n
-                readonly GSI1SK:
-                | 'A-a1-B-1-NEW_TAG-VERDADERO'
-                | 'A-a1-B-1-NEW_TAG-FALSO'
-                readonly GSI2PK: never
-            })
+                  a: 'a1'
+                  b: 1n
+                  c: true
+                  z: 'never'
+              } & {
+                  readonly PK: 'A-a1-B-1-C-VERDADERO' | 'A-a1-B-1-C-FALSO'
+                  readonly SK: 1n
+                  readonly GSI1PK: 1n
+                  readonly GSI1SK:
+                      | 'A-a1-B-1-NEW_TAG-VERDADERO'
+                      | 'A-a1-B-1-NEW_TAG-FALSO'
+                  readonly GSI2PK: never
+              })
             | ({
-                a: 'a2'
-                b: 2
-                c: 0
-                z: 'never'
-            } & {
-                readonly PK: 'A-a2-B-2-C-VERDADERO' | 'A-a2-B-2-C-FALSO'
-                readonly SK: 2
-                readonly GSI1PK: 2
-                readonly GSI1SK: 2
-                readonly GSI2PK: 2
-            })
+                  a: 'a2'
+                  b: 2
+                  c: 0
+                  z: 'never'
+              } & {
+                  readonly PK: 'A-a2-B-2-C-VERDADERO' | 'A-a2-B-2-C-FALSO'
+                  readonly SK: 2
+                  readonly GSI1PK: 2
+                  readonly GSI1SK: 2
+                  readonly GSI2PK: 2
+              })
 
         type expect_infer = isTrue<Equal<typeof testTableEntry.infer, entries>>
 
@@ -854,29 +854,29 @@ describe('DynamoDB Utils', () => {
             Equal<
                 RealEntry,
                 | (A & {
-                    readonly PK: `ID1#${string}#USER#${string}`
-                    readonly SK: `TAG#A#ID2#${string}#TYPE#TypeA`
-                    readonly GSI1PK: `ID2#${string}`
-                    readonly GSI1SK: `TYPE#TypeA`
-                })
+                      readonly PK: `ID1#${string}#USER#${string}`
+                      readonly SK: `TAG#A#ID2#${string}#TYPE#TypeA`
+                      readonly GSI1PK: `ID2#${string}`
+                      readonly GSI1SK: `TYPE#TypeA`
+                  })
                 | ({
-                    readonly PK: `ID1#${string}#USER#${string}`
-                    readonly SK: `TAG#C#ID2#${string}#TYPE#TypeB`
-                    readonly GSI1PK: `ID2#${string}`
-                    readonly GSI1SK: `TYPE#TypeB`
-                } & C)
+                      readonly PK: `ID1#${string}#USER#${string}`
+                      readonly SK: `TAG#C#ID2#${string}#TYPE#TypeB`
+                      readonly GSI1PK: `ID2#${string}`
+                      readonly GSI1SK: `TYPE#TypeB`
+                  } & C)
                 | ({
-                    readonly PK: `ID1#${string}#USER#${string}`
-                    readonly SK: `TAG#D#ID2#${string}#KIND#${string}#TYPE#TypeA`
-                    readonly GSI1PK: `ID2#${string}`
-                    readonly GSI1SK: `KIND#${string}`
-                } & D)
+                      readonly PK: `ID1#${string}#USER#${string}`
+                      readonly SK: `TAG#D#ID2#${string}#KIND#${string}#TYPE#TypeA`
+                      readonly GSI1PK: `ID2#${string}`
+                      readonly GSI1SK: `KIND#${string}`
+                  } & D)
                 | ({
-                    readonly PK: `ID1#${string}#USER#${string}`
-                    readonly SK: `TAG#B#ID2#${string}#TYPE#TypeB`
-                    readonly GSI1PK: `ID2#${string}`
-                    readonly GSI1SK: `TYPE#TypeB`
-                } & B)
+                      readonly PK: `ID1#${string}#USER#${string}`
+                      readonly SK: `TAG#B#ID2#${string}#TYPE#TypeB`
+                      readonly GSI1PK: `ID2#${string}`
+                      readonly GSI1SK: `TYPE#TypeB`
+                  } & B)
             >
         >
 
@@ -965,75 +965,75 @@ describe('DynamoDB Utils', () => {
                         | 'c'
                         | 'z'
                         | NonEmptyArray<
-                            | 'a'
-                            | 'b'
-                            | 'c'
-                            | ['a', (key: 'a1' | 'a2') => TransformShape]
-                            | ['b', (key: 1n | 2) => TransformShape]
-                            | ['c', (key: true | 0) => TransformShape]
-                            | [
-                                'z',
-                                (key: 'never' | null) => TransformShape,
-                                'never' | null,
-                            ]
-                        >
+                              | 'a'
+                              | 'b'
+                              | 'c'
+                              | ['a', (key: 'a1' | 'a2') => TransformShape]
+                              | ['b', (key: 1n | 2) => TransformShape]
+                              | ['c', (key: true | 0) => TransformShape]
+                              | [
+                                    'z',
+                                    (key: 'never' | null) => TransformShape,
+                                    'never' | null,
+                                ]
+                          >
                         | null
                         | {
-                            discriminator: 'a'
-                            spec: {
-                                a1:
-                                | 'a'
-                                | 'b'
-                                | 'c'
-                                | 'z'
-                                | NonEmptyArray<
-                                    | 'a'
-                                    | 'b'
-                                    | 'c'
-                                    | 'z'
-                                    | [
-                                        'a',
-                                        (key: 'a1') => TransformShape,
-                                    ]
-                                    | ['b', (key: 1n) => TransformShape]
-                                    | [
-                                        'c',
-                                        (key: true) => TransformShape,
-                                    ]
-                                    | [
-                                        'z',
-                                        (
-                                            key: 'never',
-                                        ) => TransformShape,
-                                    ]
-                                >
-                                | null
-                                a2:
-                                | 'a'
-                                | 'b'
-                                | 'c'
-                                | 'z'
-                                | NonEmptyArray<
-                                    | 'a'
-                                    | 'b'
-                                    | 'c'
-                                    | [
-                                        'a',
-                                        (key: 'a2') => TransformShape,
-                                    ]
-                                    | ['b', (key: 2) => TransformShape]
-                                    | ['c', (key: 0) => TransformShape]
-                                    | [
-                                        'z',
-                                        (
-                                            key: 'never' | null,
-                                        ) => TransformShape,
-                                        'never' | null,
-                                    ]
-                                >
-                                | null
-                            }
-                        }
+                              discriminator: 'a'
+                              spec: {
+                                  a1:
+                                      | 'a'
+                                      | 'b'
+                                      | 'c'
+                                      | 'z'
+                                      | NonEmptyArray<
+                                            | 'a'
+                                            | 'b'
+                                            | 'c'
+                                            | 'z'
+                                            | [
+                                                  'a',
+                                                  (key: 'a1') => TransformShape,
+                                              ]
+                                            | ['b', (key: 1n) => TransformShape]
+                                            | [
+                                                  'c',
+                                                  (key: true) => TransformShape,
+                                              ]
+                                            | [
+                                                  'z',
+                                                  (
+                                                      key: 'never',
+                                                  ) => TransformShape,
+                                              ]
+                                        >
+                                      | null
+                                  a2:
+                                      | 'a'
+                                      | 'b'
+                                      | 'c'
+                                      | 'z'
+                                      | NonEmptyArray<
+                                            | 'a'
+                                            | 'b'
+                                            | 'c'
+                                            | [
+                                                  'a',
+                                                  (key: 'a2') => TransformShape,
+                                              ]
+                                            | ['b', (key: 2) => TransformShape]
+                                            | ['c', (key: 0) => TransformShape]
+                                            | [
+                                                  'z',
+                                                  (
+                                                      key: 'never' | null,
+                                                  ) => TransformShape,
+                                                  'never' | null,
+                                              ]
+                                        >
+                                      | null
+                              }
+                          }
                     >,
                     separator?: string | undefined,
                 ]
@@ -1064,27 +1064,27 @@ describe('DynamoDB Utils', () => {
 
         type entries =
             | ({
-                a: 'a1'
-                b: 1n
-                c: true
-                z: 'never'
-            } & {
-                readonly PK: `A-a1-B-${string}-C-true`
-                readonly SK: 'C-true-Z-never' | 'C-true-Z-DEFAULT'
-                readonly GSIPK: 'never'
-                readonly GSISK: 'Z-never-Z-never'
-            })
+                  a: 'a1'
+                  b: 1n
+                  c: true
+                  z: 'never'
+              } & {
+                  readonly PK: `A-a1-B-${string}-C-true`
+                  readonly SK: 'C-true-Z-never' | 'C-true-Z-DEFAULT'
+                  readonly GSIPK: 'never'
+                  readonly GSISK: 'Z-never-Z-never'
+              })
             | ({
-                a: 'a2'
-                b: 2
-                c: 0
-                z?: 'never' | null
-            } & {
-                readonly PK: `A-a2-B-${string}-C-0`
-                readonly SK: 'C-0-Z-DEFAULT' | 'C-0-Z-never'
-                readonly GSIPK: 'never' | undefined
-                readonly GSISK: 'Z-never' | 'Z-DEFAULT'
-            })
+                  a: 'a2'
+                  b: 2
+                  c: 0
+                  z?: 'never' | null
+              } & {
+                  readonly PK: `A-a2-B-${string}-C-0`
+                  readonly SK: 'C-0-Z-DEFAULT' | 'C-0-Z-never'
+                  readonly GSIPK: 'never' | undefined
+                  readonly GSISK: 'Z-never' | 'Z-DEFAULT'
+              })
 
         type expect_infer = isTrue<Equal<typeof testTableEntry.infer, entries>>
 
@@ -1129,51 +1129,51 @@ describe('DynamoDB Utils', () => {
                         | 'a'
                         | 'b'
                         | NonEmptyArray<
-                            | 'a'
-                            | 'b'
-                            | ['a', (key: 'a1' | 'a2') => TransformShape]
-                            | ['b', (key: 1n | 2) => TransformShape]
-                        >
+                              | 'a'
+                              | 'b'
+                              | ['a', (key: 'a1' | 'a2') => TransformShape]
+                              | ['b', (key: 1n | 2) => TransformShape]
+                          >
                         | null
                         | {
-                            discriminator: 'a'
-                            spec: {
-                                a1:
-                                | 'a'
-                                | 'b'
-                                | 'extra'
-                                | NonEmptyArray<
-                                    | 'a'
-                                    | 'b'
-                                    | 'extra'
-                                    | [
-                                        'a',
-                                        (key: 'a1') => TransformShape,
-                                    ]
-                                    | ['b', (key: 1n) => TransformShape]
-                                    | [
-                                        'extra',
-                                        (
-                                            key: 'extra',
-                                        ) => TransformShape,
-                                    ]
-                                >
-                                | null
-                                a2:
-                                | 'a'
-                                | 'b'
-                                | NonEmptyArray<
-                                    | 'a'
-                                    | 'b'
-                                    | [
-                                        'a',
-                                        (key: 'a2') => TransformShape,
-                                    ]
-                                    | ['b', (key: 2) => TransformShape]
-                                >
-                                | null
-                            }
-                        }
+                              discriminator: 'a'
+                              spec: {
+                                  a1:
+                                      | 'a'
+                                      | 'b'
+                                      | 'extra'
+                                      | NonEmptyArray<
+                                            | 'a'
+                                            | 'b'
+                                            | 'extra'
+                                            | [
+                                                  'a',
+                                                  (key: 'a1') => TransformShape,
+                                              ]
+                                            | ['b', (key: 1n) => TransformShape]
+                                            | [
+                                                  'extra',
+                                                  (
+                                                      key: 'extra',
+                                                  ) => TransformShape,
+                                              ]
+                                        >
+                                      | null
+                                  a2:
+                                      | 'a'
+                                      | 'b'
+                                      | NonEmptyArray<
+                                            | 'a'
+                                            | 'b'
+                                            | [
+                                                  'a',
+                                                  (key: 'a2') => TransformShape,
+                                              ]
+                                            | ['b', (key: 2) => TransformShape]
+                                        >
+                                      | null
+                              }
+                          }
                     >,
                     separator?: string | undefined,
                 ]
