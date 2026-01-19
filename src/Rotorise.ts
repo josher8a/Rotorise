@@ -41,6 +41,33 @@ export type CompositeKeyParams<
     skip extends number = 1,
 > = CompositeKeyParamsImpl<Entity, FullSpec, skip>
 
+type CompositeKeyBuilderImpl<
+    Entity,
+    Spec,
+    Separator extends string = '#',
+    Deep extends number = number,
+    isPartial extends boolean = false,
+> = Entity extends unknown
+    ? CompositeKeyStringBuilder<
+          Entity,
+          [Deep] extends [never]
+              ? Spec
+              : number extends Deep
+                ? Spec
+                : SliceFromStart<Spec, Deep>,
+          Separator,
+          boolean extends isPartial ? false : isPartial
+      >
+    : never
+
+export type CompositeKeyBuilder<
+    Entity extends Record<string, unknown>,
+    Spec extends InputSpec<MergeIntersectionObject<Entity>>[],
+    Separator extends string = '#',
+    Deep extends number = number,
+    isPartial extends boolean = false,
+> = CompositeKeyBuilderImpl<Entity, Spec, Separator, Deep, isPartial>
+
 type joinable = string | number | bigint | boolean | null | undefined
 
 type ExtractHelper<Key, Value> = Value extends object
@@ -97,33 +124,6 @@ type CompositeKeyStringBuilder<
           >
         : never
     : AllAcc | Acc
-
-type CompositeKeyBuilderImpl<
-    Entity,
-    Spec,
-    Separator extends string = '#',
-    Deep extends number = number,
-    isPartial extends boolean = false,
-> = Entity extends unknown
-    ? CompositeKeyStringBuilder<
-          Entity,
-          [Deep] extends [never]
-              ? Spec
-              : number extends Deep
-                ? Spec
-                : SliceFromStart<Spec, Deep>,
-          Separator,
-          boolean extends isPartial ? false : isPartial
-      >
-    : never
-
-export type CompositeKeyBuilder<
-    Entity extends Record<string, unknown>,
-    Spec extends InputSpec<MergeIntersectionObject<Entity>>[],
-    Separator extends string = '#',
-    Deep extends number = number,
-    isPartial extends boolean = false,
-> = CompositeKeyBuilderImpl<Entity, Spec, Separator, Deep, isPartial>
 
 type DiscriminatedSchemaShape = {
     discriminator: PropertyKey
