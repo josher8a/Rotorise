@@ -377,7 +377,7 @@ describe('DynamoDB Utils', () => {
             ),
         ).toBe(1)
 
-        attest.instantiations([10981, 'instantiations'])
+        attest.instantiations([9615, 'instantiations'])
     })
 
     test('path from infer then toString', () => {
@@ -729,7 +729,7 @@ describe('DynamoDB Utils', () => {
             }),
         ).toBeUndefined()
 
-        attest.instantiations([63523, 'instantiations'])
+        attest.instantiations([61232, 'instantiations'])
     })
 
     test('real world example', () => {
@@ -945,7 +945,7 @@ describe('DynamoDB Utils', () => {
             { depth: 2 },
         ) satisfies 'TAG#A#ID2#yolo'
 
-        attest.instantiations([33275, 'instantiations'])
+        attest.instantiations([31539, 'instantiations'])
     })
 
     test('schema allows for nullish values if has transform', () => {

@@ -450,7 +450,14 @@ type SpecConfigShape = {
 }
 
 // Pre-compute discriminated variant types
-type VariantType<Entity, K extends PropertyKey, V extends PropertyKey> = [
+// Pre-compute discriminated variant types
+type ExtractVariant<Entity, K extends PropertyKey, V extends PropertyKey> = [
+    Entity,
+] extends [never]
+    ? never
+    : Extract<Entity, { [k in K]: V }>
+
+type TagVariant<Entity, K extends PropertyKey, V extends PropertyKey> = [
     Entity,
 ] extends [never]
     ? { [k in K]: V }
@@ -463,9 +470,9 @@ type ProcessVariant<
     V extends PropertyKey,
     Spec extends DiscriminatedSchemaShape,
     Config extends SpecConfigShape,
-> = VariantType<
+> = TagVariant<
     ProcessSpecType<
-        VariantType<Entity, K, V>,
+        ExtractVariant<Entity, K, V>,
         Spec['spec'][V & keyof Spec['spec']],
         Config
     >,
