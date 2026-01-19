@@ -41,57 +41,7 @@ export type CompositeKeyParams<
     skip extends number = 1,
 > = CompositeKeyParamsImpl<Entity, FullSpec, skip>
 
-type CompositeKeyBuilderImpl<
-    Entity,
-    Spec,
-    Separator extends string = '#',
-    Deep extends number = number,
-    isPartial extends boolean = false,
-> = Entity extends unknown
-    ? Join<
-          CompositeKeyRec<
-              Entity,
-              number extends Deep ? Spec : SliceFromStart<Spec, Deep>
-          >,
-          Separator,
-          boolean extends isPartial ? false : isPartial
-      >
-    : never
-
-export type CompositeKeyBuilder<
-    Entity extends Record<string, unknown>,
-    Spec extends InputSpec<MergeIntersectionObject<Entity>>[],
-    Separator extends string = '#',
-    Deep extends number = number,
-    isPartial extends boolean = false,
-> = CompositeKeyBuilderImpl<Entity, Spec, Separator, Deep, isPartial>
-
 type joinable = string | number | bigint | boolean | null | undefined
-type joinablePair = [joinable, joinable]
-
-type Join<
-    Pairs,
-    Separator extends string,
-    KeepIntermediate extends boolean = false,
-    Acc extends string = '',
-    AllAcc extends string = never,
-> = Pairs extends [infer Head extends joinablePair, ...infer Tail]
-    ? Join<
-          Tail,
-          Separator,
-          KeepIntermediate,
-          Acc extends ''
-              ? [Head[0]] extends [never]
-                  ? `${Head[1]}`
-                  : `${Head[0]}${Separator}${Head[1]}`
-              : [Head[0]] extends [never]
-                ? `${Acc}${Separator}${Head[1]}`
-                : `${Acc}${Separator}${Head[0]}${Separator}${Head[1]}`,
-          KeepIntermediate extends true
-              ? AllAcc | (Acc extends '' ? never : Acc)
-              : never
-      >
-    : AllAcc | Acc
 
 type ExtractHelper<Key, Value> = Value extends joinable
     ? [Key, Value]
@@ -118,19 +68,63 @@ type ExtractPair<Entity, Spec> = Spec extends [
       ? [Uppercase<Spec>, Entity[Spec] & joinable]
       : never
 
-type CompositeKeyRec<
+type CompositeKeyStringBuilder<
     Entity,
     Spec,
-    Acc extends joinablePair[] = [],
-    KeysCache extends string = keyof Entity & string,
+    Separator extends string,
+    KeepIntermediate extends boolean,
+    Acc extends string = '',
+    AllAcc extends string = never,
 > = Spec extends [infer Head, ...infer Tail]
-    ? CompositeKeyRec<
+    ? ExtractPair<Entity, Head> extends [
+          infer Key extends joinable,
+          infer Value extends joinable,
+      ]
+        ? CompositeKeyStringBuilder<
+              Entity,
+              Tail,
+              Separator,
+              KeepIntermediate,
+              Acc extends ''
+                  ? [Key] extends [never]
+                      ? `${Value}`
+                      : `${Key}${Separator}${Value}`
+                  : [Key] extends [never]
+                    ? `${Acc}${Separator}${Value}`
+                    : `${Acc}${Separator}${Key}${Separator}${Value}`,
+              KeepIntermediate extends true
+                  ? AllAcc | (Acc extends '' ? never : Acc)
+                  : never
+          >
+        : never
+    : AllAcc | Acc
+
+type CompositeKeyBuilderImpl<
+    Entity,
+    Spec,
+    Separator extends string = '#',
+    Deep extends number = number,
+    isPartial extends boolean = false,
+> = Entity extends unknown
+    ? CompositeKeyStringBuilder<
           Entity,
-          Tail,
-          [...Acc, ExtractPair<Entity, Head>],
-          KeysCache
+          [Deep] extends [never]
+              ? Spec
+              : number extends Deep
+                ? Spec
+                : SliceFromStart<Spec, Deep>,
+          Separator,
+          boolean extends isPartial ? false : isPartial
       >
-    : Acc
+    : never
+
+export type CompositeKeyBuilder<
+    Entity extends Record<string, unknown>,
+    Spec extends InputSpec<MergeIntersectionObject<Entity>>[],
+    Separator extends string = '#',
+    Deep extends number = number,
+    isPartial extends boolean = false,
+> = CompositeKeyBuilderImpl<Entity, Spec, Separator, Deep, isPartial>
 
 type DiscriminatedSchemaShape = {
     discriminator: PropertyKey

@@ -58,13 +58,19 @@ export type SliceFromStart<
     T,
     End extends number,
     Acc extends unknown[] = [],
-> = T extends unknown[]
-    ? Acc['length'] extends End
-        ? Acc
-        : T extends [infer Head, ...infer Tail]
-          ? SliceFromStart<Tail, End, [...Acc, Head]>
-          : Acc
-    : never
+> = End extends 0
+    ? []
+    : End extends 1
+      ? T extends [infer Head, ...unknown[]]
+          ? [Head]
+          : []
+      : T extends unknown[]
+        ? Acc['length'] extends End
+            ? Acc
+            : T extends [infer Head, ...infer Tail]
+              ? SliceFromStart<Tail, End, [...Acc, Head]>
+              : Acc
+        : never
 
 export type Slices<
     Rest extends unknown[],
