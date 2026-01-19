@@ -57,7 +57,7 @@ describe('DynamoDB Utils', () => {
                   >
               >
 
-        attest.instantiations([1924, 'instantiations'])
+        attest.instantiations([1721, 'instantiations'])
     })
 
     it('CompositeKeyBuilder', () => {
@@ -377,7 +377,7 @@ describe('DynamoDB Utils', () => {
             ),
         ).toBe(1)
 
-        attest.instantiations([11700, 'instantiations'])
+        attest.instantiations([10981, 'instantiations'])
     })
 
     test('path from infer then toString', () => {
@@ -729,7 +729,7 @@ describe('DynamoDB Utils', () => {
             }),
         ).toBeUndefined()
 
-        attest.instantiations([64583, 'instantiations'])
+        attest.instantiations([63523, 'instantiations'])
     })
 
     test('real world example', () => {
@@ -945,7 +945,7 @@ describe('DynamoDB Utils', () => {
             { depth: 2 },
         ) satisfies 'TAG#A#ID2#yolo'
 
-        attest.instantiations([35984, 'instantiations'])
+        attest.instantiations([33275, 'instantiations'])
     })
 
     test('schema allows for nullish values if has transform', () => {

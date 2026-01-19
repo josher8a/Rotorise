@@ -10,6 +10,8 @@ import type {
     evaluate,
 } from './utils'
 
+type PartialPick<T, K extends keyof T> = { [P in K]?: T[P] }
+
 export type CompositeKeyParamsImpl<
     Entity,
     InputSpec extends InputSpecShape,
@@ -26,11 +28,9 @@ export type CompositeKeyParamsImpl<
               > &
                   keyof Entity
           > &
-              Partial<
-                  Pick<
-                      Entity,
-                      extractHeadOrPass<InputSpec[number]> & keyof Entity
-                  >
+              PartialPick<
+                  Entity,
+                  extractHeadOrPass<InputSpec[number]> & keyof Entity
               >
       >
     : never
