@@ -377,7 +377,7 @@ describe('DynamoDB Utils', () => {
             ),
         ).toBe(1)
 
-        attest.instantiations([11890, 'instantiations'])
+        attest.instantiations([11700, 'instantiations'])
     })
 
     test('path from infer then toString', () => {
@@ -413,7 +413,7 @@ describe('DynamoDB Utils', () => {
         )
         expect(testTableEntry.path().PK.toString()).toBe('PK')
 
-        attest.instantiations([1244, 'instantiations'])
+        attest.instantiations([1169, 'instantiations'])
     })
 
     test('table Entry with transform and discriminator ', () => {
@@ -729,7 +729,7 @@ describe('DynamoDB Utils', () => {
             }),
         ).toBeUndefined()
 
-        attest.instantiations([64942, 'instantiations'])
+        attest.instantiations([64583, 'instantiations'])
     })
 
     test('real world example', () => {
@@ -945,7 +945,7 @@ describe('DynamoDB Utils', () => {
             { depth: 2 },
         ) satisfies 'TAG#A#ID2#yolo'
 
-        attest.instantiations([36632, 'instantiations'])
+        attest.instantiations([35984, 'instantiations'])
     })
 
     test('schema allows for nullish values if has transform', () => {
