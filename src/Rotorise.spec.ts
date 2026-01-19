@@ -208,7 +208,7 @@ describe('DynamoDB Utils', () => {
                   >
               >
 
-        attest.instantiations([5780, 'instantiations'])
+        attest.instantiations([5778, 'instantiations'])
     })
 
     it('tableEntry', () => {
@@ -729,7 +729,7 @@ describe('DynamoDB Utils', () => {
             }),
         ).toBeUndefined()
 
-        attest.instantiations([61232, 'instantiations'])
+        attest.instantiations([61230, 'instantiations'])
     })
 
     test('real world example', () => {

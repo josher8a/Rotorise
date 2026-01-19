@@ -43,19 +43,18 @@ export type CompositeKeyParams<
 
 type joinable = string | number | bigint | boolean | null | undefined
 
-type ExtractHelper<Key, Value> = Value extends joinable
-    ? [Key, Value]
-    : Value extends {
-            tag: infer Tag extends string
-            value: infer Value extends joinable
-        }
-      ? [Tag, Value]
-      : Value extends {
-              tag?: undefined
-              value: infer Value extends joinable
-          }
-        ? [never, Value]
-        : never
+type ExtractHelper<Key, Value> = Value extends object
+    ? Value extends {
+          tag: infer Tag extends string
+          value: infer Value extends joinable
+      }
+        ? [Tag, Value]
+        : Value extends {
+                value: infer Value extends joinable
+            }
+          ? [never, Value]
+          : never
+    : [Key, Value]
 
 type ExtractPair<Entity, Spec> = Spec extends [
     infer Key extends string,
