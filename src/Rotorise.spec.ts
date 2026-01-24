@@ -6,7 +6,7 @@ import {
     type TransformShape,
     tableEntry,
 } from './Rotorise'
-import type { NonEmptyArray } from './utils'
+import type { NonEmptyArray, show } from './utils'
 
 type Equal<T, U> = (<G>() => G extends T ? 1 : 2) extends <G>() => G extends U
     ? 1
@@ -57,7 +57,7 @@ describe('DynamoDB Utils', () => {
                   >
               >
 
-        attest.instantiations([1721, 'instantiations'])
+        attest.instantiations([1726, 'instantiations'])
     })
 
     it('CompositeKeyBuilder', () => {
@@ -377,7 +377,7 @@ describe('DynamoDB Utils', () => {
             ),
         ).toBe(1)
 
-        attest.instantiations([8114, 'instantiations'])
+        attest.instantiations([7674, 'instantiations'])
     })
 
     test('path from infer then toString', () => {
@@ -598,9 +598,7 @@ describe('DynamoDB Utils', () => {
             '-',
         )
 
-        testTableEntry
-
-        type entries =
+        type entries = show<
             | ({
                   a: 'a1'
                   b: 1n
@@ -627,6 +625,7 @@ describe('DynamoDB Utils', () => {
                   readonly GSI1SK: 2
                   readonly GSI2PK: 2
               })
+        >
 
         type expect_infer = isTrue<Equal<typeof testTableEntry.infer, entries>>
 
@@ -729,7 +728,7 @@ describe('DynamoDB Utils', () => {
             }),
         ).toBeUndefined()
 
-        attest.instantiations([61230, 'instantiations'])
+        attest.instantiations([61103, 'instantiations'])
     })
 
     test('real world example', () => {
@@ -850,33 +849,35 @@ describe('DynamoDB Utils', () => {
             },
         })
 
-        let expect_infer: isTrue<
+        type expect_infer = isTrue<
             Equal<
                 RealEntry,
-                | (A & {
-                      readonly PK: `ID1#${string}#USER#${string}`
-                      readonly SK: `TAG#A#ID2#${string}#TYPE#TypeA`
-                      readonly GSI1PK: `ID2#${string}`
-                      readonly GSI1SK: `TYPE#TypeA`
-                  })
-                | ({
-                      readonly PK: `ID1#${string}#USER#${string}`
-                      readonly SK: `TAG#C#ID2#${string}#TYPE#TypeB`
-                      readonly GSI1PK: `ID2#${string}`
-                      readonly GSI1SK: `TYPE#TypeB`
-                  } & C)
-                | ({
-                      readonly PK: `ID1#${string}#USER#${string}`
-                      readonly SK: `TAG#D#ID2#${string}#KIND#${string}#TYPE#TypeA`
-                      readonly GSI1PK: `ID2#${string}`
-                      readonly GSI1SK: `KIND#${string}`
-                  } & D)
-                | ({
-                      readonly PK: `ID1#${string}#USER#${string}`
-                      readonly SK: `TAG#B#ID2#${string}#TYPE#TypeB`
-                      readonly GSI1PK: `ID2#${string}`
-                      readonly GSI1SK: `TYPE#TypeB`
-                  } & B)
+                show<
+                    | (A & {
+                          readonly PK: `ID1#${string}#USER#${string}`
+                          readonly SK: `TAG#A#ID2#${string}#TYPE#TypeA`
+                          readonly GSI1PK: `ID2#${string}`
+                          readonly GSI1SK: `TYPE#TypeA`
+                      })
+                    | ({
+                          readonly PK: `ID1#${string}#USER#${string}`
+                          readonly SK: `TAG#C#ID2#${string}#TYPE#TypeB`
+                          readonly GSI1PK: `ID2#${string}`
+                          readonly GSI1SK: `TYPE#TypeB`
+                      } & C)
+                    | ({
+                          readonly PK: `ID1#${string}#USER#${string}`
+                          readonly SK: `TAG#D#ID2#${string}#KIND#${string}#TYPE#TypeA`
+                          readonly GSI1PK: `ID2#${string}`
+                          readonly GSI1SK: `KIND#${string}`
+                      } & D)
+                    | ({
+                          readonly PK: `ID1#${string}#USER#${string}`
+                          readonly SK: `TAG#B#ID2#${string}#TYPE#TypeB`
+                          readonly GSI1PK: `ID2#${string}`
+                          readonly GSI1SK: `TYPE#TypeB`
+                      } & B)
+                >
             >
         >
 
@@ -1062,7 +1063,7 @@ describe('DynamoDB Utils', () => {
             '-',
         )
 
-        type entries =
+        type entries = show<
             | ({
                   a: 'a1'
                   b: 1n
@@ -1085,6 +1086,7 @@ describe('DynamoDB Utils', () => {
                   readonly GSIPK: 'never' | undefined
                   readonly GSISK: 'Z-never' | 'Z-DEFAULT'
               })
+        >
 
         type expect_infer = isTrue<Equal<typeof testTableEntry.infer, entries>>
 

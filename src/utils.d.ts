@@ -19,11 +19,18 @@ export type ValueOf<
     ValueType = keyof ObjectType,
 > = ValueType extends keyof ObjectType ? ObjectType[ValueType] : never
 
-export type evaluateUnion<T> = T extends unknown
+/**
+ * Force an operation like `{ a: 0 } & { b: 1 }` to be computed so that it displays `{ a: 0; b: 1 }`.
+ * This version is distributive, meaning it will preserve union types while flattening each member.
+ */
+export type show<T> = T extends unknown
     ? { [K in keyof T]: T[K] } & unknown
     : never
 
+/** @deprecated use "show" instead */
 export type evaluate<T> = { [K in keyof T]: T[K] } & unknown
+
+export type conform<T, Base> = T extends Base ? T : Base
 
 export type DistributivePick<T, K> = T extends unknown
     ? K extends keyof T
@@ -81,3 +88,45 @@ export type MergeIntersectionObject<T, Keys = keyof T> = {
 export type NonEmptyArray<T> = [T, ...T[]]
 
 export type Replace<T, U, V> = T extends U ? V : T
+
+/**
+ * Represents a type-level error message. Used to provide helpful feedback in the IDE.
+ */
+export declare const errorMessage: unique symbol
+export type ErrorMessage<T extends string> = {
+    readonly [errorMessage]: T
+}
+
+/**
+ * Standard Ark-style Higher-Kinded Type (HKT) base class.
+ */
+export declare const hkt: unique symbol
+export abstract class Hkt<F = unknown> {
+    declare readonly [hkt]: F
+    abstract body: unknown
+}
+
+/**
+ * Applies an HKT to an argument.
+ */
+export type apply<H extends Hkt, Arg> = (H & {
+    readonly [0]: Arg
+})['body']
+
+/**
+ * Ensures that a type `T` satisfies a base constraint `Base`.
+ */
+export type satisfy<Base, T extends Base> = T
+
+/**
+ * Utility for creating branded types (nominal types).
+ */
+export declare const brand: unique symbol
+export type Brand<T, Id> = T & {
+    readonly [brand]: Id
+}
+
+/**
+ * Extracts the base type from a branded type.
+ */
+export type unbrand<T> = T extends Brand<infer Base, unknown> ? Base : T
