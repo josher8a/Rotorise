@@ -485,7 +485,6 @@ type ProcessKey<
     Spec,
     Separator extends string,
     TagMapper extends TagHkt,
-    NullAs extends never | undefined = never,
     Config extends SpecConfigShape = SpecConfigShape,
     Attributes = Pick<Entity, Spec & keyof Entity & string>,
 > = [Entity] extends [never]
@@ -502,7 +501,7 @@ type ProcessKey<
               TagMapper
           >
         : Spec extends null | undefined
-          ? NullAs
+          ? never
           : ErrorMessage<'Invalid Spec'>
 
 // Cache commonly used conditional types
@@ -515,32 +514,23 @@ type SpecConfigShape = {
 }
 
 // Pre-compute discriminated variant types
-type ExtractVariant<Entity, K extends PropertyKey, V extends PropertyKey> = [
-    Entity,
-] extends [never]
+type ExtractVariant<Entity, Match> = [Entity] extends [never]
     ? never
-    : Extract<Entity, { [k in K]: V }>
+    : Extract<Entity, Match>
 
-type TagVariant<Entity, K extends PropertyKey, V extends PropertyKey> = [
-    Entity,
-] extends [never]
-    ? { [k in K]: V }
-    : Entity & { [k in K]: V }
-
+type TagVariant<Entity, Match> = ([Entity] extends [never] ? unknown : Entity) &
+    Match
 // Flatten nested type computation
 type ProcessVariant<
     Entity,
-    K extends PropertyKey,
-    V extends PropertyKey,
-    Spec extends DiscriminatedSchemaShape,
+    Match,
+    VariantSpec,
     Config extends SpecConfigShape,
-    VariantSpec = Spec['spec'][V & keyof Spec['spec']],
 > = TagVariant<
     VariantSpec extends null | undefined
-        ? unknown
-        : ProcessSpecType<ExtractVariant<Entity, K, V>, VariantSpec, Config>,
-    K,
-    V
+        ? never
+        : ProcessSpecType<ExtractVariant<Entity, Match>, VariantSpec, Config>,
+    Match
 >
 
 // Optimized attribute processing
@@ -548,18 +538,18 @@ type OptimizedAttributes<
     Entity,
     Spec,
     Config extends SpecConfigShape,
-> = Spec extends DiscriminatedSchemaShape
+> = Spec extends {
+    discriminator: infer Discriminator extends PropertyKey
+    spec: infer Specs
+}
     ? {
-          [K in Spec['discriminator']]: {
-              [V in keyof Spec['spec']]: ProcessVariant<
-                  Entity,
-                  K,
-                  V,
-                  Spec,
-                  Config
-              >
-          }[keyof Spec['spec']]
-      }[Spec['discriminator']]
+          [V in keyof Specs]: ProcessVariant<
+              Entity,
+              { [k in Discriminator]: V },
+              Specs[V],
+              Config
+          >
+      }[keyof Specs]
     : ProcessSpecType<Entity, Spec, Config>
 
 type ProcessSpecType<
@@ -603,7 +593,6 @@ type OptimizedBuildedKey<
                   : Spec,
               Separator,
               TagMapper,
-              undefined,
               Config,
               Attributes
           >
@@ -645,20 +634,13 @@ type TableEntryDefinition<
     key: <
         const Key extends Exclude<keyof Schema, configKey>,
         const Config extends SpecConfig<Spec>,
-        const Attributes extends OptimizedAttributes<Entity, Spec, Config_>,
+        const Attributes extends OptimizedAttributes<Entity, Spec, Config>,
         Spec = Schema[Key],
-        Config_ extends SpecConfigShape = [SpecConfigShape] extends [Config]
-            ? {
-                  depth?: undefined
-                  allowPartial?: undefined
-                  enforceBoundary?: boolean
-              }
-            : Config,
     >(
         key: Key,
         attributes: Attributes,
         config?: Config,
-    ) => OptimizedBuildedKey<Attributes, Spec, Config_, Schema[configKey] & {}>
+    ) => OptimizedBuildedKey<Attributes, Spec, Config, Schema[configKey] & {}>
 
     /**
      * A zero-runtime inference helper. Use this with `typeof` to get the
