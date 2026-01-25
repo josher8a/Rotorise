@@ -9,40 +9,28 @@ export type IsEqual<T, U> = (<G>() => G extends T ? 1 : 2) extends <
 
 export type ArrayElement<T> = T extends readonly unknown[] ? T[0] : never
 
-export type ExactObject<ParameterType, InputType> = {
-    [Key in keyof ParameterType]: Exact<
-        ParameterType[Key],
-        Key extends keyof InputType ? InputType[Key] : never
-    >
-} & Record<Exclude<keyof InputType, KeysOfUnion<ParameterType>>, never>
-
-export type Exact<ParameterType, InputType> = IsEqual<
-    ParameterType,
-    InputType
-> extends true
-    ? ParameterType
-    : // Convert union of array to array of union: A[] & B[] => (A & B)[]
-      ParameterType extends unknown[]
-      ? Array<Exact<ArrayElement<ParameterType>, ArrayElement<InputType>>>
-      : // In TypeScript, Array is a subtype of ReadonlyArray, so always test Array before ReadonlyArray.
-        ParameterType extends readonly unknown[]
-        ? ReadonlyArray<
-              Exact<ArrayElement<ParameterType>, ArrayElement<InputType>>
-          >
-        : ParameterType extends object
-          ? ExactObject<ParameterType, InputType>
-          : ParameterType
+// Lighter Exact implementation
+export type Exact<Shape, Candidate> = Candidate & {
+    [K in keyof Candidate]: K extends keyof Shape ? Candidate[K] : never
+}
 
 export type ValueOf<
     ObjectType,
     ValueType = keyof ObjectType,
 > = ValueType extends keyof ObjectType ? ObjectType[ValueType] : never
 
-export type evaluateUnion<T> = T extends unknown
+/**
+ * Force an operation like `{ a: 0 } & { b: 1 }` to be computed so that it displays `{ a: 0; b: 1 }`.
+ * This version is distributive, meaning it will preserve union types while flattening each member.
+ */
+export type show<T> = T extends unknown
     ? { [K in keyof T]: T[K] } & unknown
     : never
 
+/** @deprecated use "show" instead */
 export type evaluate<T> = { [K in keyof T]: T[K] } & unknown
+
+export type conform<T, Base> = T extends Base ? T : Base
 
 export type DistributivePick<T, K> = T extends unknown
     ? K extends keyof T
@@ -58,13 +46,19 @@ export type SliceFromStart<
     T,
     End extends number,
     Acc extends unknown[] = [],
-> = T extends unknown[]
-    ? Acc['length'] extends End
-        ? Acc
-        : T extends [infer Head, ...infer Tail]
-          ? SliceFromStart<Tail, End, [...Acc, Head]>
-          : Acc
-    : never
+> = End extends 0
+    ? []
+    : End extends 1
+      ? T extends [infer Head, ...unknown[]]
+          ? [Head]
+          : []
+      : T extends unknown[]
+        ? Acc['length'] extends End
+            ? Acc
+            : T extends [infer Head, ...infer Tail]
+              ? SliceFromStart<Tail, End, [...Acc, Head]>
+              : Acc
+        : never
 
 export type Slices<
     Rest extends unknown[],
@@ -94,3 +88,45 @@ export type MergeIntersectionObject<T, Keys = keyof T> = {
 export type NonEmptyArray<T> = [T, ...T[]]
 
 export type Replace<T, U, V> = T extends U ? V : T
+
+/**
+ * Represents a type-level error message. Used to provide helpful feedback in the IDE.
+ */
+export declare const errorMessage: unique symbol
+export type ErrorMessage<T extends string> = {
+    readonly [errorMessage]: T
+}
+
+/**
+ * Standard Ark-style Higher-Kinded Type (HKT) base class.
+ */
+export declare const hkt: unique symbol
+export abstract class Hkt<F = unknown> {
+    declare readonly [hkt]: F
+    abstract body: unknown
+}
+
+/**
+ * Applies an HKT to an argument.
+ */
+export type apply<H extends Hkt, Arg> = (H & {
+    readonly [0]: Arg
+})['body']
+
+/**
+ * Ensures that a type `T` satisfies a base constraint `Base`.
+ */
+export type satisfy<Base, T extends Base> = T
+
+/**
+ * Utility for creating branded types (nominal types).
+ */
+export declare const brand: unique symbol
+export type Brand<T, Id> = T & {
+    readonly [brand]: Id
+}
+
+/**
+ * Extracts the base type from a branded type.
+ */
+export type unbrand<T> = T extends Brand<infer Base, unknown> ? Base : T
