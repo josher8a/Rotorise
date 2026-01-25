@@ -11,6 +11,7 @@ import type {
     conform,
     ErrorMessage,
     satisfy,
+    evaluate,
 } from './utils'
 
 export const hkt: unique symbol = Symbol('hkt')
@@ -38,6 +39,14 @@ export type apply<H extends Hkt, Arg> = (H & {
     readonly [0]: Arg
 })['body']
 
+type MapTag<H extends TagHkt, T extends string> = H extends UppercaseMapper
+    ? Uppercase<T>
+    : H extends LowercaseMapper
+      ? Lowercase<T>
+      : H extends IdentityMapper
+        ? T
+        : apply<H, T> & string
+
 type PartialPick<T, K extends keyof T> = { [P in K]?: T[P] }
 
 export type CompositeKeyParamsImpl<
@@ -45,19 +54,14 @@ export type CompositeKeyParamsImpl<
     Spec extends unknown[],
     skip extends number = 1,
 > = Entity extends unknown
-    ? show<
-          Pick<
-              Entity,
-              extractHeadOrPass<
-                  SliceFromStart<Spec, number extends skip ? 1 : skip>[number]
-              > &
-                  keyof Entity
+    ? Pick<
+          Entity,
+          extractHeadOrPass<
+              SliceFromStart<Spec, number extends skip ? 1 : skip>[number]
           > &
-              PartialPick<
-                  Entity,
-                  extractHeadOrPass<Spec[number]> & keyof Entity
-              >
-      >
+              keyof Entity
+      > &
+          PartialPick<Entity, extractHeadOrPass<Spec[number]> & keyof Entity>
     : never
 
 export type CompositeKeyParams<
@@ -98,18 +102,21 @@ export type CompositeKeyBuilder<
 
 type joinable = string | number | bigint | boolean | null | undefined
 
-type ExtractHelper<Key, Value> = Value extends object
-    ? Value extends {
-          tag: infer Tag extends string
-          value: infer Value extends joinable
-      }
-        ? [Tag, Value]
-        : Value extends {
-                value: infer Value extends joinable
-            }
-          ? [never, Value]
-          : never
+type ExtractHelper<Key, Value> = Value extends {
+    value: infer V extends joinable
+}
+    ? Value extends { tag: infer Tag extends string }
+        ? [Tag, V]
+        : [never, V]
     : [Key, Value]
+
+type ApplyHkt<H extends Hkt, Arg> = H extends UppercaseHkt
+    ? Uppercase<`${conform<Arg, string | number | bigint | boolean>}`>
+    : H extends Prefix<infer P>
+      ? `${P}${conform<Arg, string | number | bigint | boolean>}`
+      : H extends Suffix<infer S>
+        ? `${conform<Arg, string | number | bigint | boolean>}${S}`
+        : apply<H, Arg>
 
 type ExtractPair<Entity, Spec, TagMapper extends TagHkt> = Spec extends [
     infer Key extends string,
@@ -117,15 +124,15 @@ type ExtractPair<Entity, Spec, TagMapper extends TagHkt> = Spec extends [
     ...unknown[],
 ]
     ? ExtractHelper<
-          apply<TagMapper, Key> & string,
+          MapTag<TagMapper, Key>,
           Transform extends Hkt
-              ? apply<Transform, Entity[Key & keyof Entity]>
+              ? ApplyHkt<Transform, Entity[Key & keyof Entity]>
               : Transform extends (...args: never[]) => infer Value
                 ? Value
                 : never
       >
     : Spec extends keyof Entity & string
-      ? [apply<TagMapper, Spec> & string, Entity[Spec] & joinable]
+      ? [MapTag<TagMapper, Spec>, Entity[Spec] & joinable]
       : never
 
 type CompositeKeyStringBuilder<
@@ -222,29 +229,21 @@ type TableEntryImpl<
         ? Config['tagMapper']
         : UppercaseMapper,
 > = Entity extends unknown
-    ? show<
-          {
-              readonly [Key in keyof Schema &
-                  string]: Schema[Key] extends DiscriminatedSchemaShape
-                  ? ComputeTableKeyType<
-                        Entity,
-                        ValueOf<
-                            Schema[Key]['spec'],
-                            ValueOf<Entity, Schema[Key]['discriminator']>
-                        >,
-                        Separator,
-                        TagMapper
-                    >
-                  : Schema[Key] extends keyof Entity | InputSpecShape | null
-                    ? ComputeTableKeyType<
-                          Entity,
-                          Schema[Key],
-                          Separator,
-                          TagMapper
-                      >
-                    : ErrorMessage<'Invalid schema definition'>
-          } & Entity
-      >
+    ? {
+          readonly [Key in keyof Schema &
+              string]: Schema[Key] extends DiscriminatedSchemaShape
+              ? ComputeTableKeyType<
+                    Entity,
+                    Schema[Key]['spec'][Entity[Schema[Key]['discriminator'] &
+                        keyof Entity] &
+                        keyof Schema[Key]['spec']],
+                    Separator,
+                    TagMapper
+                >
+              : Schema[Key] extends keyof Entity | InputSpecShape | null
+                ? ComputeTableKeyType<Entity, Schema[Key], Separator, TagMapper>
+                : ErrorMessage<'Invalid schema definition'>
+      } & Entity
     : never
 
 /**
@@ -543,21 +542,23 @@ type ProcessVariant<
 >
 
 // Optimized attribute processing
-type OptimizedAttributes<Entity, Spec, Config extends SpecConfigShape> = show<
-    Spec extends DiscriminatedSchemaShape
-        ? {
-              [K in Spec['discriminator']]: {
-                  [V in keyof Spec['spec']]: ProcessVariant<
-                      Entity,
-                      K,
-                      V,
-                      Spec,
-                      Config
-                  >
-              }[keyof Spec['spec']]
-          }[Spec['discriminator']]
-        : ProcessSpecType<Entity, Spec, Config>
->
+type OptimizedAttributes<
+    Entity,
+    Spec,
+    Config extends SpecConfigShape,
+> = Spec extends DiscriminatedSchemaShape
+    ? {
+          [K in Spec['discriminator']]: {
+              [V in keyof Spec['spec']]: ProcessVariant<
+                  Entity,
+                  K,
+                  V,
+                  Spec,
+                  Config
+              >
+          }[keyof Spec['spec']]
+      }[Spec['discriminator']]
+    : ProcessSpecType<Entity, Spec, Config>
 
 type ProcessSpecType<
     Entity,

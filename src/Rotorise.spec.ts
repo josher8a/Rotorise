@@ -9,7 +9,7 @@ import {
     type TableSchema,
     type TableSchemaConfig,
     path,
-    Hkt,
+    type Hkt,
 } from './Rotorise'
 import type { NonEmptyArray, show } from './utils'
 
@@ -42,7 +42,7 @@ describe('DynamoDB Utils', () => {
             >,
         )
 
-        attest.instantiations([1582, 'instantiations'])
+        attest.instantiations([1221, 'instantiations'])
     })
 
     it('CompositeKeyBuilder', () => {
@@ -175,7 +175,7 @@ describe('DynamoDB Utils', () => {
             >,
         )
 
-        attest.instantiations([5778, 'instantiations'])
+        attest.instantiations([5997, 'instantiations'])
     })
 
     it('tableEntry', () => {
@@ -341,7 +341,7 @@ describe('DynamoDB Utils', () => {
             ),
         ).toBe(1)
 
-        attest.instantiations([7674, 'instantiations'])
+        attest.instantiations([7213, 'instantiations'])
     })
 
     test('path from infer then toString', () => {
@@ -694,7 +694,7 @@ describe('DynamoDB Utils', () => {
             }),
         ).toBeUndefined()
 
-        attest.instantiations([11108, 'instantiations'])
+        attest.instantiations([9138, 'instantiations'])
     })
 
     test('real world example', () => {
@@ -910,7 +910,7 @@ describe('DynamoDB Utils', () => {
             { depth: 2 },
         ) satisfies 'TAG#A#ID2#yolo'
 
-        attest.instantiations([31539, 'instantiations'])
+        attest.instantiations([30550, 'instantiations'])
     })
 
     test('schema allows for nullish values if has transform', () => {
