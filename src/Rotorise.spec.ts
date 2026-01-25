@@ -15,31 +15,44 @@ import type { NonEmptyArray, show } from './utils'
 
 describe('DynamoDB Utils', () => {
     it('CompositeKeyParams', () => {
+        type Entity = {
+            a: string
+            b: number
+            c: boolean
+        }
+
         attest<{ a: string; b?: number; c?: boolean }>(
-            null as unknown as CompositeKeyParams<
-                { a: string; b: number; c: boolean },
-                ['a', 'b', 'c']
-            >,
+            null as unknown as CompositeKeyParams<Entity, ['a', 'b', 'c']>,
+        ).type.toString.snap(
+            '{\n  a: string\n  b?: number | undefined\n  c?: boolean | undefined\n}',
         )
         attest<{ a: string; b?: number; c?: boolean }>(
             null as unknown as CompositeKeyParams<
-                { a: string; b: number; c: boolean },
+                Entity,
                 ['a', 'b', ['c', (c: boolean) => 'TRANSFORM']]
             >,
+        ).type.toString.snap(
+            '{\n  a: string\n  b?: number | undefined\n  c?: boolean | undefined\n}',
         )
+
         attest<{ a: string; b: number; c?: boolean }>(
             null as unknown as CompositeKeyParams<
-                { a: string; b: number; c: boolean },
+                Entity,
                 ['a', 'b', ['c', (c: boolean) => 'TRANSFORM']],
                 2
             >,
+        ).type.toString.snap(
+            '{ a: string; b: number; c?: boolean | undefined }',
         )
+
         attest<{ a: string; b?: number; c?: boolean }>(
             null as unknown as CompositeKeyParams<
-                { a: string; b: number; c: boolean },
+                Entity,
                 ['a', 'b', ['c', (c: boolean) => 'TRANSFORM']],
                 number
             >,
+        ).type.toString.snap(
+            '{\n  a: string\n  b?: number | undefined\n  c?: boolean | undefined\n}',
         )
 
         attest.instantiations([1221, 'instantiations'])

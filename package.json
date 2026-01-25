@@ -42,7 +42,7 @@
   },
   "license": "Apache-2.0",
   "devDependencies": {
-    "@ark/attest": "^0.34.0",
+    "@ark/attest": "^0.56.0",
     "@biomejs/biome": "2.0.0",
     "@swc/jest": "^0.2.36",
     "@types/node": "^18.19.34",

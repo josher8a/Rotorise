@@ -53,15 +53,19 @@ export type CompositeKeyParamsImpl<
     Entity,
     Spec extends unknown[],
     skip extends number = 1,
+    skip_ extends number = number extends skip ? 1 : skip,
 > = Entity extends unknown
-    ? Pick<
-          Entity,
-          extractHeadOrPass<
-              SliceFromStart<Spec, number extends skip ? 1 : skip>[number]
+    ? show<
+          Pick<
+              Entity,
+              extractHeadOrPass<SliceFromStart<Spec, skip_>[number]> &
+                  keyof Entity
           > &
-              keyof Entity
-      > &
-          PartialPick<Entity, extractHeadOrPass<Spec[number]> & keyof Entity>
+              PartialPick<
+                  Entity,
+                  extractHeadOrPass<Spec[number]> & keyof Entity
+              >
+      >
     : never
 
 export type CompositeKeyParams<
@@ -141,7 +145,7 @@ type CompositeKeyStringBuilder<
     Separator extends string,
     KeepIntermediate extends boolean,
     TagMapper extends TagHkt,
-    Acc extends string = '',
+    Acc extends string = never,
     AllAcc extends string = never,
 > = Spec extends [infer Head, ...infer Tail]
     ? ExtractPair<Entity, Head, TagMapper> extends [
@@ -154,16 +158,14 @@ type CompositeKeyStringBuilder<
               Separator,
               KeepIntermediate,
               TagMapper,
-              Acc extends ''
+              [Acc] extends [never]
                   ? [Key] extends [never]
                       ? `${Value}`
                       : `${Key}${Separator}${Value}`
                   : [Key] extends [never]
                     ? `${Acc}${Separator}${Value}`
                     : `${Acc}${Separator}${Key}${Separator}${Value}`,
-              KeepIntermediate extends true
-                  ? AllAcc | (Acc extends '' ? never : Acc)
-                  : never
+              KeepIntermediate extends true ? AllAcc | Acc : never
           >
         : never
     : AllAcc | Acc
