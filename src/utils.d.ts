@@ -38,7 +38,7 @@ export type DistributivePick<T, K> = T extends unknown
         : never
     : never
 
-export type DistributiveOmit<T, K extends keyof T> = T extends unknown
+export type DistributiveOmit<T, K extends PropertyKey> = T extends unknown
     ? Omit<T, K>
     : never
 
@@ -96,22 +96,6 @@ export declare const errorMessage: unique symbol
 export type ErrorMessage<T extends string> = {
     readonly [errorMessage]: T
 }
-
-/**
- * Standard Ark-style Higher-Kinded Type (HKT) base class.
- */
-export declare const hkt: unique symbol
-export abstract class Hkt<F = unknown> {
-    declare readonly [hkt]: F
-    abstract body: unknown
-}
-
-/**
- * Applies an HKT to an argument.
- */
-export type apply<H extends Hkt, Arg> = (H & {
-    readonly [0]: Arg
-})['body']
 
 /**
  * Ensures that a type `T` satisfies a base constraint `Base`.

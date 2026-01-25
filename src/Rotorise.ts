@@ -13,27 +13,49 @@ import type {
     satisfy,
 } from './utils'
 
+export const hkt: unique symbol = Symbol('hkt')
+export const SchemaConfigs: unique symbol = Symbol('config')
+type configKey = typeof SchemaConfigs
+
+export abstract class Hkt<F = unknown> {
+    declare readonly [hkt]: F
+    abstract body: unknown
+    abstract transform(
+        v: string | number | bigint | boolean,
+    ): joinable | TransformShape
+    declare readonly [0]: unknown
+}
+
+/**
+ * Base HKT for tag mapping (key casing/transformations).
+ */
+export abstract class TagHkt extends Hkt {
+    abstract override body: string
+    abstract override transform(v: string): string
+}
+
+export type apply<H extends Hkt, Arg> = (H & {
+    readonly [0]: Arg
+})['body']
+
 type PartialPick<T, K extends keyof T> = { [P in K]?: T[P] }
 
 export type CompositeKeyParamsImpl<
     Entity,
-    InputSpec extends InputSpecShape,
+    Spec extends unknown[],
     skip extends number = 1,
 > = Entity extends unknown
     ? show<
           Pick<
               Entity,
               extractHeadOrPass<
-                  SliceFromStart<
-                      InputSpec,
-                      number extends skip ? 1 : skip
-                  >[number]
+                  SliceFromStart<Spec, number extends skip ? 1 : skip>[number]
               > &
                   keyof Entity
           > &
               PartialPick<
                   Entity,
-                  extractHeadOrPass<InputSpec[number]> & keyof Entity
+                  extractHeadOrPass<Spec[number]> & keyof Entity
               >
       >
     : never
@@ -50,6 +72,7 @@ type CompositeKeyBuilderImpl<
     Separator extends string = '#',
     Deep extends number = number,
     isPartial extends boolean = false,
+    TagMapper extends TagHkt = UppercaseMapper,
 > = Entity extends unknown
     ? CompositeKeyStringBuilder<
           Entity,
@@ -59,7 +82,8 @@ type CompositeKeyBuilderImpl<
                 ? Spec
                 : SliceFromStart<Spec, Deep>,
           Separator,
-          boolean extends isPartial ? false : isPartial
+          boolean extends isPartial ? false : isPartial,
+          TagMapper
       >
     : never
 
@@ -69,7 +93,8 @@ export type CompositeKeyBuilder<
     Separator extends string = '#',
     Deep extends number = number,
     isPartial extends boolean = false,
-> = CompositeKeyBuilderImpl<Entity, Spec, Separator, Deep, isPartial>
+    TagMapper extends TagHkt = UppercaseMapper,
+> = CompositeKeyBuilderImpl<Entity, Spec, Separator, Deep, isPartial, TagMapper>
 
 type joinable = string | number | bigint | boolean | null | undefined
 
@@ -86,15 +111,21 @@ type ExtractHelper<Key, Value> = Value extends object
           : never
     : [Key, Value]
 
-type ExtractPair<Entity, Spec> = Spec extends [
+type ExtractPair<Entity, Spec, TagMapper extends TagHkt> = Spec extends [
     infer Key extends string,
-    // biome-ignore lint/suspicious/noExplicitAny: <explanation>
-    (...key: any[]) => infer Value,
+    infer Transform,
     ...unknown[],
 ]
-    ? ExtractHelper<Uppercase<Key>, Value>
+    ? ExtractHelper<
+          apply<TagMapper, Key> & string,
+          Transform extends Hkt
+              ? apply<Transform, Entity[Key & keyof Entity]>
+              : Transform extends (...args: never[]) => infer Value
+                ? Value
+                : never
+      >
     : Spec extends keyof Entity & string
-      ? [Uppercase<Spec>, Entity[Spec] & joinable]
+      ? [apply<TagMapper, Spec> & string, Entity[Spec] & joinable]
       : never
 
 type CompositeKeyStringBuilder<
@@ -102,10 +133,11 @@ type CompositeKeyStringBuilder<
     Spec,
     Separator extends string,
     KeepIntermediate extends boolean,
+    TagMapper extends TagHkt,
     Acc extends string = '',
     AllAcc extends string = never,
 > = Spec extends [infer Head, ...infer Tail]
-    ? ExtractPair<Entity, Head> extends [
+    ? ExtractPair<Entity, Head, TagMapper> extends [
           infer Key extends joinable,
           infer Value extends joinable,
       ]
@@ -114,6 +146,7 @@ type CompositeKeyStringBuilder<
               Tail,
               Separator,
               KeepIntermediate,
+              TagMapper,
               Acc extends ''
                   ? [Key] extends [never]
                       ? `${Value}`
@@ -137,7 +170,8 @@ type DiscriminatedSchemaShape = {
 
 type InputSpecShape =
     // biome-ignore lint/suspicious/noExplicitAny: ggg
-    ([PropertyKey, (key: any) => unknown, ...unknown[]] | PropertyKey)[]
+    ([PropertyKey, Hkt | ((key: any) => unknown), ...unknown[]] | PropertyKey)[]
+
 export type TransformShape =
     | {
           tag?: string
@@ -149,33 +183,65 @@ type ComputeTableKeyType<
     Entity,
     Spec,
     Separator extends string,
-    NullAs extends never | undefined = never,
+    TagMapper extends TagHkt,
 > = Spec extends InputSpecShape
-    ? CompositeKeyBuilderImpl<Entity, Spec, Separator, number, false>
-    : Spec extends keyof Entity
+    ? CompositeKeyBuilderImpl<Entity, Spec, Separator, number, false, TagMapper>
+    : Spec extends keyof Entity & string
       ? Replace<Entity[Spec], null, undefined>
-      : Spec extends null
-        ? NullAs
-        : never
+      : never
+
+type extractHeadOrPass<T> = T extends readonly unknown[] ? T[0] : T
+
+/**
+ * Configuration for a DynamoDB table schema.
+ */
+export type TableSchemaConfig = {
+    readonly separator?: string
+    readonly tagMapper?: TagHkt
+}
+
+/**
+ * A structured DynamoDB table schema, including key definitions and optional configuration.
+ *
+ * @template Entity The base entity type.
+ * @template Keys The key definitions (e.g., PK, SK, GSI1PK).
+ * @template Config Optional configuration for the table (e.g., separator, tagMapper).
+ */
+export type TableSchema<Entity> = Record<string, FullKeySpec<Entity>> & {
+    readonly [SchemaConfigs]?: TableSchemaConfig
+}
 
 type TableEntryImpl<
     Entity,
-    Schema,
-    Separator extends string = '#',
+    Schema extends Record<string, FullKeySpecShape>,
+    Config extends TableSchemaConfig,
+    Separator extends string = Config['separator'] extends string
+        ? Config['separator']
+        : '#',
+    TagMapper extends TagHkt = Config['tagMapper'] extends TagHkt
+        ? Config['tagMapper']
+        : UppercaseMapper,
 > = Entity extends unknown
     ? show<
           {
-              readonly [Key in keyof Schema]: Schema[Key] extends DiscriminatedSchemaShape
+              readonly [Key in keyof Schema &
+                  string]: Schema[Key] extends DiscriminatedSchemaShape
                   ? ComputeTableKeyType<
                         Entity,
                         ValueOf<
                             Schema[Key]['spec'],
                             ValueOf<Entity, Schema[Key]['discriminator']>
                         >,
-                        Separator
+                        Separator,
+                        TagMapper
                     >
                   : Schema[Key] extends keyof Entity | InputSpecShape | null
-                    ? ComputeTableKeyType<Entity, Schema[Key], Separator>
+                    ? ComputeTableKeyType<
+                          Entity,
+                          Schema[Key],
+                          Separator,
+                          TagMapper
+                      >
                     : ErrorMessage<'Invalid schema definition'>
           } & Entity
       >
@@ -187,27 +253,26 @@ type TableEntryImpl<
  *
  * @template Entity The base entity type.
  * @template Schema The schema defining the table keys.
- * @template Separator The string used to join composite key components (default: '#').
  */
 export type TableEntry<
     Entity extends Record<string, unknown>,
-    Schema extends Record<string, FullKeySpec<Entity>>,
-    Separator extends string = '#',
-> = TableEntryImpl<Entity, Schema, Separator>
+    Schema extends TableSchema<Entity>,
+> = TableEntryImpl<Entity, Omit<Schema, configKey>, Schema[configKey] & {}>
 
 type InputSpec<E> = {
     [key in keyof E]:
         | (undefined extends E[key]
               ? [
                     key,
-                    (key: Exclude<E[key], undefined>) => TransformShape,
+                    ((key: Exclude<E[key], undefined>) => TransformShape) | Hkt,
                     Exclude<E[key], undefined>,
                 ]
-              : [key, (key: Exclude<E[key], undefined>) => TransformShape])
+              : [
+                    key,
+                    ((key: Exclude<E[key], undefined>) => TransformShape) | Hkt,
+                ])
         | (undefined extends E[key] ? never : null extends E[key] ? never : key)
 }[keyof E]
-
-type extractHeadOrPass<T> = T extends readonly unknown[] ? T[0] : T
 
 type FullKeySpecSimple<Entity> =
     | NonEmptyArray<InputSpec<MergeIntersectionObject<Entity>>>
@@ -266,27 +331,9 @@ const createPathProxy = <T>(path = ''): T => {
 
 const key =
     <const Entity>() =>
+    <const Schema extends TableSchema<Entity>>(schema: Schema) =>
     <
-        const Schema extends Record<
-            string,
-            | InputSpec<MergeIntersectionObject<Entity>>[]
-            | keyof Entity
-            | {
-                  discriminator: keyof Entity
-                  spec: {
-                      [val in string]:
-                          | InputSpec<MergeIntersectionObject<Entity>>[]
-                          | keyof Entity
-                  }
-              }
-        >,
-        Separator extends string = '#',
-    >(
-        schema: Schema,
-        separator: Separator = '#' as Separator,
-    ) =>
-    <
-        const Key extends keyof Schema,
+        const Key extends Extract<keyof Schema, string>,
         const Config extends {
             depth?: number
             allowPartial?: boolean
@@ -298,24 +345,31 @@ const key =
         attributes: Attributes,
         config?: Config,
     ): string | undefined => {
-        const case_ = schema[key]
+        const conf = schema[SchemaConfigs]
+        const separator = conf?.separator ?? '#'
+        const tagMapper = conf?.tagMapper ?? tagMappers.uppercase
+        const case_ = schema[key as keyof typeof schema] as
+            | FullKeySpec<Entity>
+            | undefined
 
         if (case_ === undefined) {
             throw new Error(`Key ${key.toString()} not found in schema`)
         }
         let structure: InputSpec<MergeIntersectionObject<Entity>>[]
 
+        if (case_ == null) return undefined as never
+
         if (Array.isArray(case_)) {
             structure = case_
-        } else if (typeof case_ === 'object') {
-            const discriminator =
-                attributes[case_.discriminator as keyof Attributes]
-            if (discriminator === undefined) {
+        } else if (typeof case_ === 'object' && 'discriminator' in case_) {
+            const discriminator = attributes[case_.discriminator]
+            if (discriminator == null) {
                 throw new Error(
                     `Discriminator ${case_.discriminator.toString()} not found in ${JSON.stringify(attributes)}`,
                 )
             }
-            const val = case_.spec[discriminator as keyof typeof case_.spec]
+            const val =
+                case_.spec[discriminator as unknown as keyof typeof case_.spec]
             if (val === undefined) {
                 throw new Error(
                     `Discriminator value ${discriminator?.toString()} not found in ${JSON.stringify(attributes)}`,
@@ -329,7 +383,9 @@ const key =
                 return attributes[val as keyof Attributes] as never
             }
 
-            structure = val
+            structure = val as NonEmptyArray<
+                InputSpec<MergeIntersectionObject<Entity>>
+            >
         } else {
             const value = attributes[case_ as keyof Attributes]
             if (value == null) return undefined as never
@@ -352,17 +408,27 @@ const key =
             const value = attributes[key as keyof Attributes] ?? Default
 
             if (transform && value !== undefined) {
-                const transformed = transform(value as never)
+                let transformed: any
+                if (typeof transform === 'function') {
+                    transformed = transform(value as never)
+                } else if (
+                    typeof transform === 'object' &&
+                    transform !== null &&
+                    'transform' in transform
+                ) {
+                    transformed = (transform as any).transform(value)
+                }
+
                 if (typeof transformed === 'object' && transformed !== null) {
                     if (transformed.tag !== undefined)
                         composite.push(transformed.tag)
                     composite.push(transformed.value)
                 } else {
-                    composite.push(key.toString().toUpperCase())
+                    composite.push(tagMapper.transform(key.toString()))
                     composite.push(transformed)
                 }
             } else if (value !== undefined && value !== null && value !== '') {
-                composite.push(key.toString().toUpperCase())
+                composite.push(tagMapper.transform(key.toString()))
                 composite.push(value as joinable)
             } else if (config?.allowPartial) {
                 break
@@ -382,34 +448,12 @@ const key =
 
 const toEntry =
     <const Entity extends Record<string, unknown>>() =>
-    <
-        const Schema extends Record<
-            string,
-            | InputSpec<MergeIntersectionObject<Entity>>[]
-            | keyof Entity
-            | {
-                  discriminator: keyof Entity
-                  spec: {
-                      [val in string]:
-                          | InputSpec<MergeIntersectionObject<Entity>>[]
-                          | keyof Entity
-                  }
-              }
-        >,
-        Separator extends string = '#',
-    >(
-        schema: Schema,
-        separator: Separator = '#' as Separator,
-    ) =>
-    <const ExactEntity extends Entity>(
-        item: ExactEntity,
-    ): ExactEntity extends infer E extends Entity
-        ? TableEntryImpl<E, Schema, Separator>
-        : never => {
+    <const Schema extends TableSchema<Entity>>(schema: Schema) =>
+    <const ExactEntity extends Entity>(item: ExactEntity): any => {
         const entry = { ...item }
-
+        const keyFn = key<Entity>()(schema)
         for (const key_ in schema) {
-            const val = key<Entity>()(schema, separator)(key_, item)
+            const val = keyFn(key_, item)
             if (val !== undefined) {
                 entry[key_] = val satisfies string as never
             }
@@ -420,13 +464,8 @@ const toEntry =
 
 const fromEntry =
     <const Entity extends Record<string, unknown>>() =>
-    <
-        const Schema extends Record<string, FullKeySpecShape>,
-        Separator extends string = '#',
-    >(
-        schema: Schema,
-    ) =>
-    <const Entry extends TableEntryImpl<Entity, Schema, Separator>>(
+    <const Schema extends TableSchema<Entity>>(schema: Schema) =>
+    <const Entry extends TableEntry<Entity, Schema>>(
         entry: Entry,
     ): DistributiveOmit<Entry, keyof Schema> => {
         const item = { ...entry }
@@ -438,23 +477,32 @@ const fromEntry =
         return item as never
     }
 
-type ProcessSpecType<
+export const path = <T>(): T => createPathProxy()
+
+type ProcessKey<
     Entity,
     Spec,
-    Config extends SpecConfigShape,
-> = Spec extends string
-    ? DistributivePick<Entity, Spec>
-    : Spec extends InputSpecShape
-      ? CompositeKeyParamsImpl<
-            Entity,
-            Spec,
-            Config['allowPartial'] extends true
-                ? 1
-                : Extract<Config['depth'], number>
-        >
-      : Spec extends null | undefined
-        ? unknown
-        : ErrorMessage<'Invalid Spec: Expected string, InputSpecShape, null or undefined'>
+    Separator extends string,
+    TagMapper extends TagHkt,
+    NullAs extends never | undefined = never,
+    Config extends SpecConfigShape = SpecConfigShape,
+    Attributes = Pick<Entity, Spec & keyof Entity & string>,
+> = [Entity] extends [never]
+    ? never
+    : Spec extends keyof Entity & string
+      ? Replace<ValueOf<Attributes>, null, undefined>
+      : Spec extends InputSpecShape
+        ? CompositeKeyBuilderImpl<
+              Entity,
+              Spec,
+              Separator,
+              Exclude<Config['depth'], undefined>,
+              Exclude<Config['allowPartial'], undefined>,
+              TagMapper
+          >
+        : Spec extends null | undefined
+          ? NullAs
+          : ErrorMessage<'Invalid Spec'>
 
 // Cache commonly used conditional types
 type SpecConfig<Spec> = Spec extends string ? never : SpecConfigShape
@@ -465,7 +513,6 @@ type SpecConfigShape = {
     enforceBoundary?: boolean
 }
 
-// Pre-compute discriminated variant types
 // Pre-compute discriminated variant types
 type ExtractVariant<Entity, K extends PropertyKey, V extends PropertyKey> = [
     Entity,
@@ -512,76 +559,77 @@ type OptimizedAttributes<Entity, Spec, Config extends SpecConfigShape> = show<
         : ProcessSpecType<Entity, Spec, Config>
 >
 
-type ProcessKey<
+type ProcessSpecType<
     Entity,
     Spec,
-    Separator extends string,
-    NullAs extends never | undefined = never,
-    Config extends SpecConfigShape = SpecConfigShape,
-    Attributes = Pick<Entity, Spec & keyof Entity>,
-> = [Entity] extends [never]
-    ? never
-    : Spec extends keyof Entity
-      ? Replace<ValueOf<Attributes>, null, undefined>
-      : Spec extends InputSpecShape
-        ? CompositeKeyBuilderImpl<
-              Entity,
-              Spec,
-              Separator,
-              Exclude<Config['depth'], undefined>,
-              Exclude<Config['allowPartial'], undefined>
-          >
-        : Spec extends null | undefined
-          ? NullAs
-          : ErrorMessage<'Invalid Spec'>
+    Config extends SpecConfigShape,
+> = Spec extends string
+    ? DistributivePick<Entity, Spec>
+    : Spec extends InputSpecShape
+      ? CompositeKeyParamsImpl<
+            Entity,
+            Spec,
+            Config['allowPartial'] extends true
+                ? 1
+                : Extract<Config['depth'], number>
+        >
+      : Spec extends null | undefined
+        ? unknown
+        : ErrorMessage<'Invalid Spec: Expected string, InputSpecShape, null or undefined'>
 
 type OptimizedBuildedKey<
-    Entity,
-    Spec,
-    Separator extends string,
-    Config extends SpecConfigShape,
     Attributes,
-> = Entity extends unknown
+    Spec,
+    Config extends SpecConfigShape,
+    C extends TableSchemaConfig,
+    Separator extends string = C['separator'] extends string
+        ? C['separator']
+        : '#',
+    TagMapper extends TagHkt = C['tagMapper'] extends TagHkt
+        ? C['tagMapper']
+        : UppercaseMapper,
+> = Attributes extends unknown
     ? show<
-          Spec extends DiscriminatedSchemaShape
-              ? ProcessKey<
-                    Entity,
-                    ValueOf<
+          ProcessKey<
+              Attributes,
+              Spec extends DiscriminatedSchemaShape
+                  ? ValueOf<
                         Spec['spec'],
-                        ValueOf<Entity, Spec['discriminator']>
-                    >,
-                    Separator,
-                    undefined,
-                    Config,
-                    Attributes
-                >
-              : ProcessKey<
-                    Entity,
-                    Spec,
-                    Separator,
-                    undefined,
-                    Config,
-                    Attributes
-                >
+                        ValueOf<Attributes, Spec['discriminator']>
+                    >
+                  : Spec,
+              Separator,
+              TagMapper,
+              undefined,
+              Config,
+              Attributes
+          >
       >
     : never
 
-type TableEntryDefinition<Entity, Schema, Separator extends string> = {
+type TableEntryDefinition<
+    Entity extends Record<string, any>,
+    Schema extends TableSchema<Entity>,
+> = {
     /**
      * Converts a raw entity into a complete table entry with all keys computed.
      * Use this when preparing items for insertion into DynamoDB.
      */
     toEntry: <const ExactEntity>(
         item: Exact<Entity, ExactEntity>,
-    ) => TableEntryImpl<ExactEntity, Schema, Separator>
+    ) => TableEntryImpl<
+        ExactEntity,
+        Omit<Schema, configKey>,
+        Schema[configKey] & {}
+    >
 
     /**
      * Extracts the raw entity from a table entry by removing all computed keys.
      * Use this when processing items retrieved from DynamoDB.
      */
-    fromEntry: <const Entry extends TableEntryImpl<Entity, Schema, Separator>>(
+    fromEntry: <const Entry extends TableEntry<Entity, Schema>>(
         entry: Entry,
-    ) => DistributiveOmit<Entry, keyof Schema>
+    ) => Extract<Entity, DistributiveOmit<Entry, keyof Schema>>
 
     /**
      * Generates a specific key for the given entity attributes.
@@ -592,7 +640,7 @@ type TableEntryDefinition<Entity, Schema, Separator extends string> = {
      * @param config Optional configuration for partial keys or depth limiting.
      */
     key: <
-        const Key extends keyof Schema,
+        const Key extends Exclude<keyof Schema, configKey>,
         const Config extends SpecConfig<Spec>,
         const Attributes extends OptimizedAttributes<Entity, Spec, Config_>,
         Spec = Schema[Key],
@@ -607,13 +655,13 @@ type TableEntryDefinition<Entity, Schema, Separator extends string> = {
         key: Key,
         attributes: Attributes,
         config?: Config,
-    ) => OptimizedBuildedKey<Attributes, Spec, Separator, Config_, Attributes>
+    ) => OptimizedBuildedKey<Attributes, Spec, Config_, Schema[configKey] & {}>
 
     /**
      * A zero-runtime inference helper. Use this with `typeof` to get the
      * total type of a table entry.
      */
-    infer: TableEntryImpl<Entity, Schema, Separator>
+    infer: TableEntry<Entity, Schema>
 
     /**
      * Creates a proxy to generate property paths as strings.
@@ -622,35 +670,113 @@ type TableEntryDefinition<Entity, Schema, Separator extends string> = {
      * @example
      * table.path().data.nested.property.toString() // returns "data.nested.property"
      */
-    path: () => TableEntryImpl<Entity, Schema, Separator>
+    path: () => TableEntry<Entity, Schema>
 }
 
 /**
  * Entry point for defining a DynamoDB table schema with Rotorise.
  *
  * @template Entity The base entity type that this table represents.
- * @returns A builder function that accepts the schema and an optional separator.
+ * @returns A builder function that accepts the schema and optional configuration.
  *
  * @example
  * const userTable = tableEntry<User>()({
  *   PK: ["orgId", "id"],
- *   SK: "role"
+ *   SK: "role",
+ *   [config]: { separator: "#" }
  * })
  */
 export const tableEntry =
     <const Entity extends Record<string, unknown>>() =>
-    <
-        const Schema extends Record<string, FullKeySpec<Entity>>,
-        Separator extends string = '#',
-    >(
+    <const Schema extends TableSchema<Entity>>(
         schema: Schema,
-        separator: Separator = '#' as Separator,
-    ): TableEntryDefinition<Entity, Schema, Separator> => {
+    ): TableEntryDefinition<Entity, Schema> => {
         return {
-            toEntry: toEntry()(schema as never, separator) as never,
+            toEntry: toEntry()(schema as never) as never,
             fromEntry: fromEntry()(schema as never) as never,
-            key: key()(schema as never, separator) as never,
+            key: key()(schema as never) as never,
             infer: chainableNoOpProxy as never,
-            path: () => createPathProxy() as never,
+            path: path,
         }
     }
+
+// --- Standard HKT Implementations ---
+
+/**
+ * Prepends a prefix to the value.
+ */
+export class Prefix<P extends string> extends Hkt {
+    constructor(private p: P) {
+        super()
+    }
+    override body: `${P}${conform<this[0], string | number | bigint | boolean>}` =
+        undefined as never
+    transform(v: string | number | bigint | boolean) {
+        return `${this.p}${v}`
+    }
+}
+
+/**
+ * Appends a suffix to the value.
+ */
+export class Suffix<S extends string> extends Hkt {
+    constructor(private s: S) {
+        super()
+    }
+    override body: `${conform<this[0], string | number | bigint | boolean>}${S}` =
+        undefined as never
+    transform(v: string | number | bigint | boolean) {
+        return `${v}${this.s}`
+    }
+}
+
+/**
+ * Converts the value to uppercase.
+ */
+export class UppercaseHkt extends Hkt {
+    override body: Uppercase<`${conform<this[0], string | number | bigint | boolean>}`> =
+        undefined as never
+    transform(v: string | number | bigint | boolean) {
+        return String(v).toUpperCase()
+    }
+}
+
+export const uppercase = new UppercaseHkt()
+
+// --- Tag Mapper Implementations ---
+
+/**
+ * Maps tags to uppercase (Default).
+ */
+export class UppercaseMapper extends TagHkt {
+    override body: Uppercase<conform<this[0], string>> = undefined as never
+    transform(v: string) {
+        return v.toUpperCase()
+    }
+}
+
+/**
+ * Maps tags to lowercase.
+ */
+export class LowercaseMapper extends TagHkt {
+    override body: Lowercase<conform<this[0], string>> = undefined as never
+    transform(v: string) {
+        return v.toLowerCase()
+    }
+}
+
+/**
+ * Maintains the original casing of the tag.
+ */
+export class IdentityMapper extends TagHkt {
+    override body: conform<this[0], string> = undefined as never
+    transform(v: string) {
+        return v
+    }
+}
+
+export const tagMappers = {
+    uppercase: new UppercaseMapper(),
+    lowercase: new LowercaseMapper(),
+    identity: new IdentityMapper(),
+}
