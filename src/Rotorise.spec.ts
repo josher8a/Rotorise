@@ -228,9 +228,22 @@ describe('DynamoDB Utils', () => {
                   readonly SK: 2
               })
 
-        attest<entries>(testTableEntry.infer)
+        attest<entries>(
+            testTableEntry.infer,
+        ).type.toString.snap(`  | ({ readonly PK: "A-a1-B-1-C-true"; readonly SK: 1 } & {
+      a: "a1"
+      b: 1
+      c: true
+      z: "never"
+    })
+  | ({ readonly PK: "A-a2-B-2-C-true"; readonly SK: 2 } & {
+      a: "a2"
+      b: 2
+      c: true
+      z: "never"
+    })`)
 
-        expect(
+        attest(
             testTableEntry.key(
                 'PK',
                 {
@@ -243,7 +256,9 @@ describe('DynamoDB Utils', () => {
                     allowPartial: false,
                 },
             ),
-        ).toBe('A-a1-B-1')
+        )
+            .equals('A-a1-B-1')
+            .type.toString.snap('"A-a1-B-1"')
 
         expect(
             testTableEntry.key(
@@ -290,69 +305,53 @@ describe('DynamoDB Utils', () => {
         attest<Entity>(
             null as unknown as ReturnType<typeof testTableEntry.fromEntry>,
         )
-        attest<typeof entity>(fromEntry) // narrow down to the exact type
+        attest(fromEntry)
+            .equals(entity)
+            .type.toString.snap(`{ a: "a1"; b: 1; c: true; z: "never" }`) // narrow down to the exact type
 
-        expect(fromEntry).toEqual(entity)
+        attest<'A-a1-B-1' | 'A-a1'>(
+            testTableEntry.key(
+                'PK',
+                {
+                    a: 'a1',
+                    b: 1,
+                },
+                {
+                    depth: 2,
+                    allowPartial: true,
+                },
+            ),
+        )
+            .equals('A-a1-B-1')
+            .type.toString.snap(`"A-a1" | "A-a1-B-1"`)
 
-        const key = testTableEntry.key(
-            'PK',
-            {
+        attest<'A-a1-B-1-C-true'>(
+            testTableEntry.key('PK', {
                 a: 'a1',
                 b: 1,
-            },
-            {
-                depth: 2,
-                allowPartial: true,
-            },
+                c: true,
+            }),
         )
-
-        attest<'A-a1-B-1' | 'A-a1'>(key)
-
-        expect(key).toBe('A-a1-B-1')
-
-        const keyDefaults = testTableEntry.key('PK', {
-            a: 'a1',
-            b: 1,
-            c: true,
-        })
-
-        attest<'A-a1-B-1-C-true'>(keyDefaults)
-
-        expect(keyDefaults).toBe('A-a1-B-1-C-true')
+            .equals('A-a1-B-1-C-true')
+            .type.toString.snap(`"A-a1-B-1-C-true"`)
 
         // infer should be accesible at runtime
         expect(testTableEntry.path().PK.length).toBeDefined()
 
-        expect(
-            testTableEntry.key(
-                'SK',
-                {
-                    b: 1,
-                },
-                undefined, // when is raw numeric key, configuration is not needed
-            ),
-        ).toBe(1)
-        expect(
+        attest<1>(
             testTableEntry.key(
                 'SK',
                 {
                     b: 1,
                 },
                 // @ts-expect-error
-                { depth: 1 },
+                {}, // when is raw key, configuration is not needed
             ),
-        ).toBe(1)
-
-        expect(
-            testTableEntry.key(
-                'SK',
-                {
-                    b: 1,
-                },
-                // @ts-expect-error
-                { allowPartial: true },
-            ),
-        ).toBe(1)
+        )
+            .equals(1)
+            .type.errors.snap(
+                "Argument of type '{}' is not assignable to parameter of type 'undefined'.",
+            )
 
         attest.instantiations([7213, 'instantiations'])
     })
@@ -574,7 +573,7 @@ describe('DynamoDB Utils', () => {
             },
         })
 
-        type entries = show<
+        type entries =
             | ({
                   a: 'a1'
                   b: 1n
@@ -601,7 +600,6 @@ describe('DynamoDB Utils', () => {
                   readonly GSI1SK: 2
                   readonly GSI2PK: 2
               })
-        >
 
         attest<entries>(testTableEntry.infer)
 
@@ -663,7 +661,7 @@ describe('DynamoDB Utils', () => {
             }),
         ).toBe(1n)
 
-        expect(
+        attest(
             testTableEntry.key(
                 'GSI1SK',
                 {
@@ -675,37 +673,39 @@ describe('DynamoDB Utils', () => {
                     depth: 2,
                 },
             ),
-        ).toBe('A-a1-B-1')
+        )
+            .equals('A-a1-B-1')
+            .type.toString.snap(`"A-a1-B-1"`)
 
-        expect(
+        attest(
             testTableEntry.key('GSI1SK', {
                 a: 'a1',
                 b: 1n,
                 c: true,
             }),
-        ).toBe('A-a1-B-1-NEW_TAG-VERDADERO')
+        ).equals('A-a1-B-1-NEW_TAG-VERDADERO')
 
-        expect(
+        attest(
             testTableEntry.key('GSI1SK', {
                 a: 'a2',
                 b: 2,
                 // z: 'never',
             }),
-        ).toBe(2)
+        ).equals(2)
 
-        expect(
+        attest(
             testTableEntry.key('GSI2PK', {
                 a: 'a2',
                 b: 2,
                 // z: 'never',
             }),
-        ).toBe(2)
+        ).equals(2)
 
-        expect(
+        attest(
             testTableEntry.key('GSI2PK', {
                 a: 'a1',
             }),
-        ).toBeUndefined()
+        ).unknown.equals(undefined)
 
         attest.instantiations([9138, 'instantiations'])
     })
