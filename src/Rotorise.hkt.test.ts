@@ -1,13 +1,13 @@
-import { describe, it, expect } from 'vitest'
 import { attest } from '@ark/attest'
+import { describe, expect, it } from 'vitest'
 import {
-    tableEntry,
-    Prefix,
-    Suffix,
-    uppercase,
     Hkt,
-    tagMappers,
+    Prefix,
     SchemaConfigs,
+    Suffix,
+    tableEntry,
+    tagMappers,
+    uppercase,
 } from './Rotorise'
 import type { conform } from './utils'
 
@@ -61,10 +61,9 @@ describe('Rotorise HKT Transformations', () => {
             PK: [['id', new BracketHkt()]],
         })
 
-        attest(customTable.key('PK', { id: '123' })).type.toString.snap(
-            '"ID#[123]"',
-        )
-        expect(customTable.key('PK', { id: '123' })).toBe('ID#[123]')
+        attest(customTable.key('PK', { id: '123' }))
+            .equals('ID#[123]')
+            .type.toString.snap('"ID#[123]"')
     })
 
     it('supports custom tag mapping (e.g. lowercase tags) via schema config', () => {
@@ -76,12 +75,8 @@ describe('Rotorise HKT Transformations', () => {
             [SchemaConfigs]: { tagMapper: tagMappers.lowercase },
         })
 
-        attest(
-            lowercaseTable.key('PK', { orgId: '123', id: '456' }),
-        ).type.toString.snap('"orgid#ORG#123#id#USER#456"')
-
-        expect(lowercaseTable.key('PK', { orgId: '123', id: '456' })).toBe(
-            'orgid#ORG#123#id#USER#456',
-        )
+        attest(lowercaseTable.key('PK', { orgId: '123', id: '456' }))
+            .equals('orgid#ORG#123#id#USER#456')
+            .type.toString.snap('"orgid#ORG#123#id#USER#456"')
     })
 })
