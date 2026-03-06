@@ -1,6 +1,6 @@
 {
   "name": "rotorise",
-  "version": "0.2.5",
+  "version": "0.3.0",
   "description": "Supercharge your DynamoDB with Rotorise!",
   "main": "dist/Rotorise.cjs",
   "types": "dist/Rotorise.d.ts",
@@ -15,6 +15,9 @@
       "require": "./dist/Rotorise.cjs"
     }
   },
+  "files": [
+    "dist"
+  ],
   "type": "module",
   "keywords": [
     "AWS",
@@ -44,7 +47,6 @@
   "devDependencies": {
     "@ark/attest": "^0.34.0",
     "@biomejs/biome": "2.0.0",
-    "@swc/jest": "^0.2.36",
     "@types/node": "^18.19.34",
     "tsup": "^8.1.0",
     "typescript": "^5.4.5",
