@@ -36,7 +36,8 @@
   "scripts": {
     "build": "tsup",
     "test": "vitest",
-    "format": "biome format --write ./src",
+    "format": "biome lint --write ",
+    "format:ci": "biome ci ./src",
     "check": "tsc --noEmit"
   },
   "author": {

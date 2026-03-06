@@ -25,8 +25,7 @@ type TransformOverride<
       // different transforms (e.g. Pick<Obj,'id'> and Pick<Obj,'name'>),
       // this intersects the parameter types rather than unioning them.
       (
-            Matched extends // biome-ignore lint/suspicious/noExplicitAny: inference
-            [any, (x: infer P) => any, ...any[]]
+            Matched extends [any, (x: infer P) => any, ...any[]] // biome-ignore lint/suspicious/noExplicitAny: inference
                 ? (x: P) => void
                 : never
         ) extends (x: infer I) => void

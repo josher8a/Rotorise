@@ -22,7 +22,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run check
-      - run: npx biome format ./src
+      - run: npm run format:ci
 
   test:
     runs-on: ubuntu-latest
