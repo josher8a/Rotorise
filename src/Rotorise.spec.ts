@@ -1110,7 +1110,8 @@ describe('DynamoDB Utils', () => {
                 ],
             ],
             SK: [
-                [ /// ERROR FOUND - adding other sub attribute to the same key structure
+                [
+                    /// ERROR FOUND - adding other sub attribute to the same key structure
                     'a',
                     (x: Pick<A, 'w'>) => ({
                         tag: 'W' as const,
