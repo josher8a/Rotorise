@@ -246,6 +246,11 @@ export class RotoriseError extends Error {
     }
 }
 
+// Runtime implementation uses `as never` casts because the generic types are
+// too complex for TS to verify at the value level. Type correctness is enforced
+// by the type-level types (CompositeKeyStringBuilder, TableEntryImpl, etc.) and
+// validated by the attest-based test suite.
+
 const chainableNoOpProxy: unknown = new Proxy(() => chainableNoOpProxy, {
     get: () => chainableNoOpProxy,
 })
@@ -346,7 +351,7 @@ const key =
         const fullLength = structure.length
 
         if (config?.depth !== undefined) {
-            structure = structure.slice(0, config.depth) as never
+            structure = structure.slice(0, config.depth) as typeof structure
         }
         const composite: joinable[] = []
 
