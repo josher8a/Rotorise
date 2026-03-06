@@ -6,7 +6,9 @@
 type DistributiveKeyof<T> = T extends unknown ? keyof T : never
 
 export type Exact<Shape, Candidate> = Candidate & {
-    [K in keyof Candidate]: K extends DistributiveKeyof<Shape> ? Candidate[K] : never
+    [K in keyof Candidate]: K extends DistributiveKeyof<Shape>
+        ? Candidate[K]
+        : never
 }
 
 export type ValueOf<
