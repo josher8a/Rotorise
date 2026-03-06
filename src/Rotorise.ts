@@ -1,14 +1,14 @@
 import type {
     DistributiveOmit,
     DistributivePick,
+    ErrorMessage,
     Exact,
     MergeIntersectionObject,
     NonEmptyArray,
     Replace,
     SliceFromStart,
-    ValueOf,
     show,
-    ErrorMessage,
+    ValueOf,
 } from './utils'
 
 // When a spec item has a transform function, use the transform's parameter type
@@ -25,10 +25,10 @@ type TransformOverride<
       // different transforms (e.g. Pick<Obj,'id'> and Pick<Obj,'name'>),
       // this intersects the parameter types rather than unioning them.
       (
-          Matched extends [any, (x: infer P) => any, ...any[]]
-              ? (x: P) => void
-              : never
-      ) extends (x: infer I) => void
+            Matched extends [any, (x: infer P) => any, ...any[]] // biome-ignore lint/suspicious/noExplicitAny: inference
+                ? (x: P) => void
+                : never
+        ) extends (x: infer I) => void
       ? I
       : Fallback
 
@@ -45,11 +45,7 @@ export type CompositeKeyParamsImpl<
                       number extends skip ? 1 : skip
                   >[number]
               > &
-                  keyof Entity]: TransformOverride<
-                  InputSpec,
-                  K,
-                  Entity[K]
-              >
+                  keyof Entity]: TransformOverride<InputSpec, K, Entity[K]>
           } & {
               [K in extractHeadOrPass<InputSpec[number]> &
                   keyof Entity]?: TransformOverride<InputSpec, K, Entity[K]>
