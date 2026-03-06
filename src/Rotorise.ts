@@ -8,9 +8,7 @@ import type {
     SliceFromStart,
     ValueOf,
     show,
-    conform,
     ErrorMessage,
-    satisfy,
 } from './utils'
 
 type PartialPick<T, K extends keyof T> = { [P in K]?: T[P] }
@@ -88,7 +86,7 @@ type ExtractHelper<Key, Value> = Value extends object
 
 type ExtractPair<Entity, Spec> = Spec extends [
     infer Key extends string,
-    // biome-ignore lint/suspicious/noExplicitAny: <explanation>
+    // biome-ignore lint/suspicious/noExplicitAny: required for generic transform inference
     (...key: any[]) => infer Value,
     ...unknown[],
 ]
@@ -136,8 +134,9 @@ type DiscriminatedSchemaShape = {
 }
 
 type InputSpecShape =
-    // biome-ignore lint/suspicious/noExplicitAny: ggg
+    // biome-ignore lint/suspicious/noExplicitAny: key type is erased at runtime, any is needed for structural matching
     ([PropertyKey, (key: any) => unknown, ...unknown[]] | PropertyKey)[]
+
 export type TransformShape =
     | {
           tag?: string
@@ -373,6 +372,8 @@ const key =
             }
         }
 
+        // Each spec element produces 2 segments (KEY, value). If fewer segments
+        // were emitted than expected (partial key), append a trailing separator.
         if (config?.enforceBoundary && fullLength * 2 > composite.length) {
             composite.push('')
         }
@@ -407,14 +408,14 @@ const toEntry =
         ? TableEntryImpl<E, Schema, Separator>
         : never => {
         const entry = { ...item }
+        const buildKey = key<Entity>()(schema, separator)
 
         for (const key_ in schema) {
-            const val = key<Entity>()(schema, separator)(key_, item)
+            const val = buildKey(key_, item)
             if (val !== undefined) {
                 entry[key_] = val satisfies string as never
             }
         }
-        // console.log({ entry })
         return entry as never
     }
 
@@ -434,7 +435,6 @@ const fromEntry =
         for (const key_ in schema) {
             delete item[key_]
         }
-        // console.log({ item })
         return item as never
     }
 
@@ -465,7 +465,6 @@ type SpecConfigShape = {
     enforceBoundary?: boolean
 }
 
-// Pre-compute discriminated variant types
 // Pre-compute discriminated variant types
 type ExtractVariant<Entity, K extends PropertyKey, V extends PropertyKey> = [
     Entity,
@@ -535,7 +534,7 @@ type ProcessKey<
           ? NullAs
           : ErrorMessage<'Invalid Spec'>
 
-type OptimizedBuildedKey<
+type OptimizedBuiltKey<
     Entity,
     Spec,
     Separator extends string,
@@ -607,7 +606,7 @@ type TableEntryDefinition<Entity, Schema, Separator extends string> = {
         key: Key,
         attributes: Attributes,
         config?: Config,
-    ) => OptimizedBuildedKey<Attributes, Spec, Separator, Config_, Attributes>
+    ) => OptimizedBuiltKey<Attributes, Spec, Separator, Config_, Attributes>
 
     /**
      * A zero-runtime inference helper. Use this with `typeof` to get the
@@ -646,6 +645,9 @@ export const tableEntry =
         schema: Schema,
         separator: Separator = '#' as Separator,
     ): TableEntryDefinition<Entity, Schema, Separator> => {
+        if (separator === '') {
+            throw new Error('Separator must not be an empty string')
+        }
         return {
             toEntry: toEntry()(schema as never, separator) as never,
             fromEntry: fromEntry()(schema as never) as never,

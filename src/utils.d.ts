@@ -1,15 +1,6 @@
-export type KeysOfUnion<ObjectType> = ObjectType extends unknown
-    ? keyof ObjectType
-    : never
-export type IsEqual<T, U> = (<G>() => G extends T ? 1 : 2) extends <
-    G,
->() => G extends U ? 1 : 2
-    ? true
-    : false
-
-export type ArrayElement<T> = T extends readonly unknown[] ? T[0] : never
-
-// Lighter Exact implementation
+// Lighter Exact implementation — catches excess top-level properties only.
+// Does not recursively check nested objects/arrays. This is intentional:
+// DynamoDB entity shapes are flat at the key level.
 export type Exact<Shape, Candidate> = Candidate & {
     [K in keyof Candidate]: K extends keyof Shape ? Candidate[K] : never
 }
@@ -26,11 +17,6 @@ export type ValueOf<
 export type show<T> = T extends unknown
     ? { [K in keyof T]: T[K] } & unknown
     : never
-
-/** @deprecated use "show" instead */
-export type evaluate<T> = { [K in keyof T]: T[K] } & unknown
-
-export type conform<T, Base> = T extends Base ? T : Base
 
 export type DistributivePick<T, K> = T extends unknown
     ? K extends keyof T
@@ -60,30 +46,9 @@ export type SliceFromStart<
               : Acc
         : never
 
-export type Slices<
-    Rest extends unknown[],
-    MinLength extends number = 0,
-    Slice extends unknown[] = [],
-    Reached extends boolean = Slice['length'] extends MinLength ? true : false,
-    Acc = never,
-> = Rest extends [infer H, ...infer T]
-    ? [...Slice, H] extends infer X extends unknown[]
-        ? Slices<
-              T,
-              MinLength,
-              X,
-              X['length'] extends MinLength ? true : Reached,
-              Acc | (Reached extends true ? Slice : never)
-          >
-        : never
-    : Acc | (Reached extends true ? Slice : never)
-
 export type MergeIntersectionObject<T, Keys = keyof T> = {
     [K in Keys]: T[K]
 }
-// type t = MergeIntersectionObject<
-//     { a: 'a1'; b: 1n; extra: 'extra' } | { a: 'a2'; b: 2 }
-// >
 
 export type NonEmptyArray<T> = [T, ...T[]]
 
@@ -96,37 +61,3 @@ export declare const errorMessage: unique symbol
 export type ErrorMessage<T extends string> = {
     readonly [errorMessage]: T
 }
-
-/**
- * Standard Ark-style Higher-Kinded Type (HKT) base class.
- */
-export declare const hkt: unique symbol
-export abstract class Hkt<F = unknown> {
-    declare readonly [hkt]: F
-    abstract body: unknown
-}
-
-/**
- * Applies an HKT to an argument.
- */
-export type apply<H extends Hkt, Arg> = (H & {
-    readonly [0]: Arg
-})['body']
-
-/**
- * Ensures that a type `T` satisfies a base constraint `Base`.
- */
-export type satisfy<Base, T extends Base> = T
-
-/**
- * Utility for creating branded types (nominal types).
- */
-export declare const brand: unique symbol
-export type Brand<T, Id> = T & {
-    readonly [brand]: Id
-}
-
-/**
- * Extracts the base type from a branded type.
- */
-export type unbrand<T> = T extends Brand<infer Base, unknown> ? Base : T
