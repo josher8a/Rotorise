@@ -1087,126 +1087,124 @@ describe('DynamoDB Utils', () => {
     })
 
     test('transform parameter types narrow .key() attributes', () => {
-        type Device = {
-            type: 'android' | 'ios' | 'web' | 'desktop' | 'other'
-            deviceId: string
-            name: string
-            ip: string
-            location: string
-            userId: string
+        type A = {
+            w: string
+            x: string
+            y: string
+            z: string
         }
 
-        type DeviceVerification = {
-            device: Device
-            verificationId: string
+        type B = {
+            a: A
+            b: string
         }
 
-        const DeviceVerificationEntry = tableEntry<DeviceVerification>()({
+        const Entry = tableEntry<B>()({
             PK: [
                 [
-                    'device',
-                    (x: Pick<Device, 'userId'>) => ({
-                        tag: 'user' as const,
-                        value: x.userId,
+                    'a',
+                    (x: Pick<A, 'w'>) => ({
+                        tag: 'W' as const,
+                        value: x.w,
                     }),
                 ],
             ],
             SK: [
                 [ /// ERROR FOUND - adding other sub attribute to the same key structure
-                    'device',
-                    (x: Pick<Device, 'userId'>) => ({
-                        tag: 'user' as const,
-                        value: x.userId,
+                    'a',
+                    (x: Pick<A, 'w'>) => ({
+                        tag: 'W' as const,
+                        value: x.w,
                     }),
                 ],
                 [
-                    'device',
-                    (x: Pick<Device, 'deviceId'>) => ({
-                        tag: 'device' as const,
-                        value: x.deviceId,
+                    'a',
+                    (x: Pick<A, 'x'>) => ({
+                        tag: 'X' as const,
+                        value: x.x,
                     }),
                 ],
                 [
-                    'verificationId',
+                    'b',
                     (x: string) => ({
-                        tag: 'verification' as const,
+                        tag: 'B_VAL' as const,
                         value: x,
                     }),
                 ],
             ],
             GSI1PK: [
                 [
-                    'device',
-                    (x: Pick<Device, 'userId'>) => ({
-                        tag: 'user' as const,
-                        value: x.userId,
+                    'a',
+                    (x: Pick<A, 'w'>) => ({
+                        tag: 'W' as const,
+                        value: x.w,
                     }),
                 ],
             ],
             GSI1SK: [
                 [
-                    'verificationId',
+                    'b',
                     (x: string) => ({
-                        tag: 'verification' as const,
+                        tag: 'B_VAL' as const,
                         value: x,
                     }),
                 ],
             ],
         })
 
-        // PK only needs userId — no cast required
+        // PK only needs w
         expect(
-            DeviceVerificationEntry.key('PK', {
-                device: { userId: 'user-123' },
+            Entry.key('PK', {
+                a: { w: 'w1' },
             }),
-        ).toBe('user#user-123')
+        ).toBe('W#w1')
 
-        // SK needs userId AND deviceId (intersected from both transform params)
+        // SK needs w AND x (intersected from both transform params)
         expect(
-            DeviceVerificationEntry.key('SK', {
-                device: { userId: 'user-123', deviceId: 'dev-456' },
-                verificationId: 'ver-789',
+            Entry.key('SK', {
+                a: { w: 'w1', x: 'x1' },
+                b: 'b1',
             }),
-        ).toBe('user#user-123#device#dev-456#verification#ver-789')
+        ).toBe('W#w1#X#x1#B_VAL#b1')
 
-        // GSI1PK only needs userId
+        // GSI1PK only needs w
         expect(
-            DeviceVerificationEntry.key('GSI1PK', {
-                device: { userId: 'user-123' },
+            Entry.key('GSI1PK', {
+                a: { w: 'w1' },
             }),
-        ).toBe('user#user-123')
+        ).toBe('W#w1')
 
-        // GSI1SK only needs verificationId
+        // GSI1SK only needs b
         expect(
-            DeviceVerificationEntry.key('GSI1SK', {
-                verificationId: 'ver-789',
+            Entry.key('GSI1SK', {
+                b: 'b1',
             }),
-        ).toBe('verification#ver-789')
+        ).toBe('B_VAL#b1')
 
-        // SK requires both userId and deviceId on device
-        DeviceVerificationEntry.key('SK', {
-            // @ts-expect-error - missing userId
-            device: { deviceId: 'dev-456' },
-            verificationId: 'ver-789',
+        // SK requires both w and x on a
+        Entry.key('SK', {
+            // @ts-expect-error - missing w
+            a: { x: 'x1' },
+            b: 'b1',
         })
 
-        // SK requires both userId and deviceId on device
-        DeviceVerificationEntry.key('SK', {
-            // @ts-expect-error - missing deviceId
-            device: { userId: 'user-123' },
-            verificationId: 'ver-789',
+        // SK requires both w and x on a
+        Entry.key('SK', {
+            // @ts-expect-error - missing x
+            a: { w: 'w1' },
+            b: 'b1',
         })
 
-        // PK requires userId on device
-        DeviceVerificationEntry.key('PK', {
-            // @ts-expect-error - empty object missing userId
-            device: {},
+        // PK requires w on a
+        Entry.key('PK', {
+            // @ts-expect-error - empty object missing w
+            a: {},
         })
 
-        // PK requires userId on device, not deviceId
-        DeviceVerificationEntry.key('PK', {
-            // @ts-expect-error - deviceId does not exist on Pick<Device, 'userId'>
-            device: { deviceId: 'dev-456' },
+        // PK requires w on a, not x
+        Entry.key('PK', {
+            // @ts-expect-error - x does not exist on Pick<A, 'w'>
+            a: { x: 'x1' },
         })
 
         attest.instantiations([6396, 'instantiations'])

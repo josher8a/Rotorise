@@ -5,7 +5,7 @@
 ### Breaking Changes
 
 - **`Exact` type simplified** — `Exact<Shape, Candidate>` now only checks excess properties at the top level. Deep recursive checking of nested objects/arrays has been removed. DynamoDB key schemas are flat, so this should not affect typical usage.
-- **`.key()` narrows attributes to transform parameter types** — when a spec item has a transform function, `.key()` now accepts the transform's parameter type (e.g. `Pick<Device, 'userId'>`) instead of the full entity. Callers passing full entities still work.
+- **`.key()` narrows attributes to transform parameter types** — when a spec item has a transform function, `.key()` now accepts the transform's parameter type (e.g. `Pick<Obj, 'id'>`) instead of the full entity. Callers passing full entities still work.
 - **Schema keys are `readonly`** — `TableEntry` computed key fields are now `readonly`. Code that mutates computed keys on entries will get type errors.
 - **Invalid schemas return `ErrorMessage<>` instead of `never`** — code checking `extends never` on schema output types may behave differently.
 

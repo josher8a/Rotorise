@@ -13,7 +13,7 @@ import type {
 
 // When a spec item has a transform function, use the transform's parameter type
 // instead of the entity's property type. This allows callers to pass only the
-// fields the transform actually needs (e.g. Pick<Device, 'userId'> instead of Device).
+// fields the transform actually needs (e.g. Pick<Obj, 'id'> instead of Obj).
 type TransformOverride<
     Spec extends InputSpecShape,
     K,
@@ -22,7 +22,7 @@ type TransformOverride<
 > = [Matched] extends [never]
     ? Fallback
     : // Contravariant inference: when the same key appears multiple times with
-      // different transforms (e.g. Pick<Device,'userId'> and Pick<Device,'deviceId'>),
+      // different transforms (e.g. Pick<Obj,'id'> and Pick<Obj,'name'>),
       // this intersects the parameter types rather than unioning them.
       (
           Matched extends [any, (x: infer P) => any, ...any[]]
