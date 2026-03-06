@@ -678,15 +678,18 @@ export const tableEntry =
         Separator extends string = '#',
     >(
         schema: Schema,
-        separator: Separator = '#' as Separator,
+        ...[separator]: [Separator] extends ['']
+            ? [ErrorMessage<'Separator must not be an empty string'>]
+            : [separator?: Separator]
     ): TableEntryDefinition<Entity, Schema, Separator> => {
-        if (separator === '') {
+        const sep = separator ?? ('#' as Separator)
+        if (sep === '' || typeof sep !== 'string') {
             throw new RotoriseError('Separator must not be an empty string')
         }
         return {
-            toEntry: toEntry()(schema as never, separator) as never,
+            toEntry: toEntry()(schema as never, sep) as never,
             fromEntry: fromEntry()(schema as never) as never,
-            key: key()(schema as never, separator) as never,
+            key: key()(schema as never, sep) as never,
             infer: chainableNoOpProxy as never,
             path: () => createPathProxy() as never,
         }

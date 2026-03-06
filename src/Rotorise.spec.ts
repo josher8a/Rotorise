@@ -37,7 +37,7 @@ describe('DynamoDB Utils', () => {
             >,
         )
 
-        attest.instantiations([1726, 'instantiations'])
+        attest.instantiations([2026, 'instantiations'])
     })
 
     it('CompositeKeyBuilder', () => {
@@ -170,7 +170,7 @@ describe('DynamoDB Utils', () => {
             >,
         )
 
-        attest.instantiations([5778, 'instantiations'])
+        attest.instantiations([5678, 'instantiations'])
     })
 
     it('tableEntry', () => {
@@ -336,7 +336,7 @@ describe('DynamoDB Utils', () => {
             ),
         ).toBe(1)
 
-        attest.instantiations([7674, 'instantiations'])
+        attest.instantiations([7743, 'instantiations'])
     })
 
     test('path from infer then toString', () => {
@@ -372,7 +372,7 @@ describe('DynamoDB Utils', () => {
         )
         expect(testTableEntry.path().PK.toString()).toBe('PK')
 
-        attest.instantiations([1169, 'instantiations'])
+        attest.instantiations([1424, 'instantiations'])
     })
 
     test('table Entry with transform and discriminator ', () => {
@@ -662,7 +662,7 @@ describe('DynamoDB Utils', () => {
             }),
         ).toBeUndefined()
 
-        attest.instantiations([11704, 'instantiations'])
+        attest.instantiations([11931, 'instantiations'])
     })
 
     test('real world example', () => {
@@ -874,7 +874,7 @@ describe('DynamoDB Utils', () => {
             { depth: 2 },
         ) satisfies 'TAG#A#ID2#yolo'
 
-        attest.instantiations([31539, 'instantiations'])
+        attest.instantiations([32307, 'instantiations'])
     })
 
     test('schema allows for nullish values if has transform', () => {
@@ -1209,6 +1209,6 @@ describe('DynamoDB Utils', () => {
             device: { deviceId: 'dev-456' },
         })
 
-        attest.instantiations([6187, 'instantiations'])
+        attest.instantiations([6396, 'instantiations'])
     })
 })
