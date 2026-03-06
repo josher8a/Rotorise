@@ -57,7 +57,7 @@ describe('Rotorise Performance Baseline', () => {
             attest(() =>
                 // @ts-expect-error
                 userSchema.key('NON_EXISTENT', { id: '123' }),
-            ).throws.snap('Error: Key NON_EXISTENT not found in schema')
+            ).throws.snap('RotoriseError: Key NON_EXISTENT not found in schema')
         })
 
         it('reports error for invalid Spec type', () => {

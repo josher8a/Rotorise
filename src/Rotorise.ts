@@ -239,6 +239,13 @@ type FullKeySpec<Entity> =
 
 type FullKeySpecShape = FullKeySpecSimpleShape | DiscriminatedSchemaShape
 
+export class RotoriseError extends Error {
+    constructor(message: string) {
+        super(message)
+        this.name = 'RotoriseError'
+    }
+}
+
 const chainableNoOpProxy: unknown = new Proxy(() => chainableNoOpProxy, {
     get: () => chainableNoOpProxy,
 })
@@ -300,7 +307,7 @@ const key =
         const case_ = schema[key]
 
         if (case_ === undefined) {
-            throw new Error(`Key ${key.toString()} not found in schema`)
+            throw new RotoriseError(`Key ${key.toString()} not found in schema`)
         }
         let structure: InputSpec<MergeIntersectionObject<Entity>>[]
 
@@ -310,13 +317,13 @@ const key =
             const discriminator =
                 attributes[case_.discriminator as keyof Attributes]
             if (discriminator === undefined) {
-                throw new Error(
+                throw new RotoriseError(
                     `Discriminator ${case_.discriminator.toString()} not found in ${JSON.stringify(attributes)}`,
                 )
             }
             const val = case_.spec[discriminator as keyof typeof case_.spec]
             if (val === undefined) {
-                throw new Error(
+                throw new RotoriseError(
                     `Discriminator value ${discriminator?.toString()} not found in ${JSON.stringify(attributes)}`,
                 )
             }
@@ -366,7 +373,7 @@ const key =
             } else if (config?.allowPartial) {
                 break
             } else {
-                throw new Error(
+                throw new RotoriseError(
                     `buildCompositeKey: Attribute ${key.toString()} not found in ${JSON.stringify(attributes)}`,
                 )
             }
@@ -630,6 +637,8 @@ type TableEntryDefinition<Entity, Schema, Separator extends string> = {
  * @template Entity The base entity type that this table represents.
  * @returns A builder function that accepts the schema and an optional separator.
  *
+ * Note: the double-call `<Entity>()(schema)` is required for partial type parameter inference.
+ *
  * @example
  * const userTable = tableEntry<User>()({
  *   PK: ["orgId", "id"],
@@ -646,7 +655,7 @@ export const tableEntry =
         separator: Separator = '#' as Separator,
     ): TableEntryDefinition<Entity, Schema, Separator> => {
         if (separator === '') {
-            throw new Error('Separator must not be an empty string')
+            throw new RotoriseError('Separator must not be an empty string')
         }
         return {
             toEntry: toEntry()(schema as never, separator) as never,
