@@ -1,8 +1,14 @@
 // Lighter Exact implementation — catches excess top-level properties only.
 // Does not recursively check nested objects/arrays. This is intentional:
 // DynamoDB entity shapes are flat at the key level.
+// Uses DistributiveKeyof so that union-typed Shape (discriminated unions)
+// exposes keys from ALL variants, not just the common keys.
+type DistributiveKeyof<T> = T extends unknown ? keyof T : never
+
 export type Exact<Shape, Candidate> = Candidate & {
-    [K in keyof Candidate]: K extends keyof Shape ? Candidate[K] : never
+    [K in keyof Candidate]: K extends DistributiveKeyof<Shape>
+        ? Candidate[K]
+        : never
 }
 
 export type ValueOf<

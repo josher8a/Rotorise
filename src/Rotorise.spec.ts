@@ -6,7 +6,96 @@ import {
     type TransformShape,
     tableEntry,
 } from './Rotorise'
-import type { NonEmptyArray, show } from './utils'
+import type { Exact, NonEmptyArray, show } from './utils'
+
+describe('Exact<> with discriminated unions', () => {
+    type Example<T extends 'A' | 'B' | 'C' = 'A' | 'B' | 'C'> = {
+        base: string
+    } & {
+        A: { a: 'A'; type: 'A' }
+        B: { b: 'B'; type: 'B'; extra: 'E' }
+        C: { c: 'C'; type: 'C' }
+    }[T]
+
+    function create<T>(item: Exact<Example, T>): T {
+        return item as T
+    }
+
+    it('accepts a valid variant A', () => {
+        const result = create({ base: 'hi', a: 'A', type: 'A' } as const)
+        attest<{ readonly base: 'hi'; readonly a: 'A'; readonly type: 'A' }>(
+            result,
+        ).equals({ base: 'hi', a: 'A', type: 'A' })
+    })
+
+    it('accepts a valid variant B with extra key', () => {
+        const result = create({
+            base: 'hi',
+            b: 'B',
+            type: 'B',
+            extra: 'E',
+        } as const)
+        attest<{
+            readonly base: 'hi'
+            readonly b: 'B'
+            readonly type: 'B'
+            readonly extra: 'E'
+        }>(result).equals({ base: 'hi', b: 'B', type: 'B', extra: 'E' })
+    })
+
+    it('accepts a valid variant C', () => {
+        const result = create({ base: 'hi', c: 'C', type: 'C' } as const)
+        attest<{ readonly base: 'hi'; readonly c: 'C'; readonly type: 'C' }>(
+            result,
+        ).equals({ base: 'hi', c: 'C', type: 'C' })
+    })
+
+    it('rejects excess properties not in any variant', () => {
+        create({
+            base: 'hi',
+            a: 'A',
+            type: 'A' as const,
+            // @ts-expect-error - 'nonexistent' is not a key in any variant
+            nonexistent: 'bad',
+        })
+    })
+
+    it('toEntry works with discriminated union entity', () => {
+        const table = tableEntry<Example>()({
+            PK: ['base'],
+            SK: {
+                discriminator: 'type',
+                spec: {
+                    A: ['a'],
+                    B: ['b'],
+                    C: ['c'],
+                },
+            },
+        })
+
+        const entryA = table.toEntry({ base: 'x', a: 'A', type: 'A' })
+        attest(entryA.PK).equals('BASE#x')
+        attest(entryA.SK).equals('A#A')
+
+        const entryB = table.toEntry({
+            base: 'y',
+            b: 'B',
+            type: 'B',
+            extra: 'E',
+        })
+        attest(entryB.PK).equals('BASE#y')
+        attest(entryB.SK).equals('B#B')
+
+        // excess property still rejected
+        table.toEntry({
+            base: 'z',
+            a: 'A',
+            type: 'A',
+            // @ts-expect-error - 'unknown' not in any variant
+            unknown: 'bad',
+        })
+    })
+})
 
 describe('DynamoDB Utils', () => {
     it('CompositeKeyParams', () => {
