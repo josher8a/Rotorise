@@ -362,11 +362,11 @@ describe('DynamoDB Utils', () => {
         )
 
         expect(testTableEntry.path().data.type.toString()).toBe('data.type')
-        // biome-ignore lint/style/noNonNullAssertion: <explanation>
+        // biome-ignore lint/style/noNonNullAssertion: index access in test assertion
         expect(testTableEntry.path().logs[0]!.type.toString()).toBe(
             'logs[0].type',
         )
-        // biome-ignore lint/style/noNonNullAssertion: <explanation>
+        // biome-ignore lint/style/noNonNullAssertion: index access in test assertion
         expect(testTableEntry.path().logs['0']!.type.toString()).toBe(
             'logs[0].type',
         )
@@ -1110,7 +1110,8 @@ describe('DynamoDB Utils', () => {
                 ],
             ],
             SK: [
-                [ /// ERROR FOUND - adding other sub attribute to the same key structure
+                [
+                    /// ERROR FOUND - adding other sub attribute to the same key structure
                     'a',
                     (x: Pick<A, 'w'>) => ({
                         tag: 'W' as const,

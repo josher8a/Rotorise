@@ -1,5 +1,5 @@
-import { describe, it } from 'vitest'
 import { attest } from '@ark/attest'
+import { describe, it } from 'vitest'
 import { tableEntry } from './Rotorise'
 
 describe('Rotorise Performance Baseline', () => {
