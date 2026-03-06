@@ -11,7 +11,26 @@ import type {
     ErrorMessage,
 } from './utils'
 
-type PartialPick<T, K extends keyof T> = { [P in K]?: T[P] }
+// When a spec item has a transform function, use the transform's parameter type
+// instead of the entity's property type. This allows callers to pass only the
+// fields the transform actually needs (e.g. Pick<Device, 'userId'> instead of Device).
+type TransformOverride<
+    Spec extends InputSpecShape,
+    K,
+    Fallback,
+    Matched = Extract<Spec[number], [K, (...args: any[]) => any, ...any[]]>,
+> = [Matched] extends [never]
+    ? Fallback
+    : // Contravariant inference: when the same key appears multiple times with
+      // different transforms (e.g. Pick<Device,'userId'> and Pick<Device,'deviceId'>),
+      // this intersects the parameter types rather than unioning them.
+      (
+          Matched extends [any, (x: infer P) => any, ...any[]]
+              ? (x: P) => void
+              : never
+      ) extends (x: infer I) => void
+      ? I
+      : Fallback
 
 export type CompositeKeyParamsImpl<
     Entity,
@@ -19,20 +38,22 @@ export type CompositeKeyParamsImpl<
     skip extends number = 1,
 > = Entity extends unknown
     ? show<
-          Pick<
-              Entity,
-              extractHeadOrPass<
+          {
+              [K in extractHeadOrPass<
                   SliceFromStart<
                       InputSpec,
                       number extends skip ? 1 : skip
                   >[number]
               > &
-                  keyof Entity
-          > &
-              PartialPick<
-                  Entity,
-                  extractHeadOrPass<InputSpec[number]> & keyof Entity
+                  keyof Entity]: TransformOverride<
+                  InputSpec,
+                  K,
+                  Entity[K]
               >
+          } & {
+              [K in extractHeadOrPass<InputSpec[number]> &
+                  keyof Entity]?: TransformOverride<InputSpec, K, Entity[K]>
+          }
       >
     : never
 

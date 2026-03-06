@@ -662,7 +662,7 @@ describe('DynamoDB Utils', () => {
             }),
         ).toBeUndefined()
 
-        attest.instantiations([61103, 'instantiations'])
+        attest.instantiations([11704, 'instantiations'])
     })
 
     test('real world example', () => {
@@ -1084,5 +1084,131 @@ describe('DynamoDB Utils', () => {
                 separator?: string | undefined,
             ]
         >(null as any as Parameters<typeof base>)
+    })
+
+    test('transform parameter types narrow .key() attributes', () => {
+        type Device = {
+            type: 'android' | 'ios' | 'web' | 'desktop' | 'other'
+            deviceId: string
+            name: string
+            ip: string
+            location: string
+            userId: string
+        }
+
+        type DeviceVerification = {
+            device: Device
+            verificationId: string
+        }
+
+        const DeviceVerificationEntry = tableEntry<DeviceVerification>()({
+            PK: [
+                [
+                    'device',
+                    (x: Pick<Device, 'userId'>) => ({
+                        tag: 'user' as const,
+                        value: x.userId,
+                    }),
+                ],
+            ],
+            SK: [
+                [ /// ERROR FOUND - adding other sub attribute to the same key structure
+                    'device',
+                    (x: Pick<Device, 'userId'>) => ({
+                        tag: 'user' as const,
+                        value: x.userId,
+                    }),
+                ],
+                [
+                    'device',
+                    (x: Pick<Device, 'deviceId'>) => ({
+                        tag: 'device' as const,
+                        value: x.deviceId,
+                    }),
+                ],
+                [
+                    'verificationId',
+                    (x: string) => ({
+                        tag: 'verification' as const,
+                        value: x,
+                    }),
+                ],
+            ],
+            GSI1PK: [
+                [
+                    'device',
+                    (x: Pick<Device, 'userId'>) => ({
+                        tag: 'user' as const,
+                        value: x.userId,
+                    }),
+                ],
+            ],
+            GSI1SK: [
+                [
+                    'verificationId',
+                    (x: string) => ({
+                        tag: 'verification' as const,
+                        value: x,
+                    }),
+                ],
+            ],
+        })
+
+        // PK only needs userId — no cast required
+        expect(
+            DeviceVerificationEntry.key('PK', {
+                device: { userId: 'user-123' },
+            }),
+        ).toBe('user#user-123')
+
+        // SK needs userId AND deviceId (intersected from both transform params)
+        expect(
+            DeviceVerificationEntry.key('SK', {
+                device: { userId: 'user-123', deviceId: 'dev-456' },
+                verificationId: 'ver-789',
+            }),
+        ).toBe('user#user-123#device#dev-456#verification#ver-789')
+
+        // GSI1PK only needs userId
+        expect(
+            DeviceVerificationEntry.key('GSI1PK', {
+                device: { userId: 'user-123' },
+            }),
+        ).toBe('user#user-123')
+
+        // GSI1SK only needs verificationId
+        expect(
+            DeviceVerificationEntry.key('GSI1SK', {
+                verificationId: 'ver-789',
+            }),
+        ).toBe('verification#ver-789')
+
+        // SK requires both userId and deviceId on device
+        DeviceVerificationEntry.key('SK', {
+            // @ts-expect-error - missing userId
+            device: { deviceId: 'dev-456' },
+            verificationId: 'ver-789',
+        })
+
+        // SK requires both userId and deviceId on device
+        DeviceVerificationEntry.key('SK', {
+            // @ts-expect-error - missing deviceId
+            device: { userId: 'user-123' },
+            verificationId: 'ver-789',
+        })
+
+        // PK requires userId on device
+        DeviceVerificationEntry.key('PK', {
+            // @ts-expect-error - empty object missing userId
+            device: {},
+        })
+
+        // PK requires userId on device, not deviceId
+        DeviceVerificationEntry.key('PK', {
+            // @ts-expect-error - deviceId does not exist on Pick<Device, 'userId'>
+            device: { deviceId: 'dev-456' },
+        })
+
+        attest.instantiations([6187, 'instantiations'])
     })
 })
