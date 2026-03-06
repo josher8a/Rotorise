@@ -1,8 +1,8 @@
 # Rotorise
 
-Supercharge your DynamoDB with DynamoDB Rotorise!
+Type-safe DynamoDB composite key management for TypeScript.
 
-DynamoDB offers incredible flexibility, but managing advanced patterns and techniques can be a challenge. [Rotorise](https://github.com/josher8a/Rotorise) simplifies complex operations by providing abstractions for key definitions, composite key constructors, partial composite keys, and advanced sort key usage in queries.  It integrates seamlessly with the [Brushless](https://github.com/josher8a/Brushless) for a frictionless and performant DynamoDB experience.
+DynamoDB offers incredible flexibility, but managing advanced patterns and techniques can be a challenge. Rotorise simplifies complex operations by providing abstractions for key definitions, composite key constructors, partial composite keys, and advanced sort key usage in queries. It integrates seamlessly with [Brushless](https://github.com/josher8a/Brushless) for a frictionless and performant DynamoDB experience.
 
 ## Installation
 
@@ -10,6 +10,190 @@ DynamoDB offers incredible flexibility, but managing advanced patterns and techn
 npm install rotorise
 ```
 
+## Quick Start
+
+Define your entity type and schema. Rotorise infers the exact key string types.
+
+```ts
+import { tableEntry } from 'rotorise'
+
+type User = {
+  orgId: string
+  id: string
+  role: 'admin' | 'user' | 'guest'
+  email: string
+}
+
+const UserTable = tableEntry<User>()({
+  PK: ['orgId', 'id'],
+  SK: ['role'],
+  GSI1PK: ['role'],
+  GSI1SK: 'email',
+})
+```
+
+## API
+
+### `tableEntry<Entity>()(schema, separator?)`
+
+Entry point for defining a DynamoDB table schema. Returns an object with the methods below.
+
+The double-call `<Entity>()(schema)` is required because TypeScript does not support partial type parameter inference — `Entity` is explicit while `Schema` is inferred from arguments.
+
+The optional `separator` defaults to `'#'`.
+
+### `.key(keyName, attributes, config?)`
+
+Builds a specific key value from the given attributes.
+
+```ts
+UserTable.key('PK', { orgId: 'acme', id: '123' })
+// => 'ORGID#acme#ID#123'
+
+UserTable.key('GSI1SK', { email: 'a@b.com' })
+// => 'a@b.com'
+```
+
+**`config` options:**
+
+- **`depth`** — Limit composite key to the first N components. Useful for `begins_with` queries.
+- **`allowPartial`** — When `true`, stops building the key when an attribute is missing instead of throwing. Returns a union of all valid partial prefixes at the type level.
+- **`enforceBoundary`** — When `true`, appends a trailing separator if the key is partial. Ensures a `begins_with` query doesn't match unintended prefixes.
+
+```ts
+UserTable.key('PK', { orgId: 'acme' }, { allowPartial: true })
+// => 'ORGID#acme'
+// Type: 'ORGID#acme' | `ORGID#${string}#ID#${string}`
+
+UserTable.key('PK', { orgId: 'acme', id: '1' }, { depth: 1 })
+// => 'ORGID#acme'
+
+UserTable.key('PK', { orgId: 'acme', id: '1' }, { depth: 1, enforceBoundary: true })
+// => 'ORGID#acme#'
+```
+
+### `.toEntry(item)`
+
+Converts a raw entity into a complete DynamoDB item with all keys computed.
+
+```ts
+const item = UserTable.toEntry({
+  orgId: 'acme',
+  id: '123',
+  role: 'admin',
+  email: 'a@b.com',
+})
+// => { orgId: 'acme', id: '123', role: 'admin', email: 'a@b.com',
+//      PK: 'ORGID#acme#ID#123', SK: 'ROLE#admin',
+//      GSI1PK: 'ROLE#admin', GSI1SK: 'a@b.com' }
+```
+
+Rejects excess properties at the type level.
+
+### `.fromEntry(entry)`
+
+Strips computed keys from a table entry, returning the raw entity.
+
+```ts
+const user = UserTable.fromEntry(item)
+// => { orgId: 'acme', id: '123', role: 'admin', email: 'a@b.com' }
+```
+
+### `.infer`
+
+Zero-runtime inference helper. Use with `typeof` to get the full table entry type.
+
+```ts
+type UserEntry = typeof UserTable.infer
+```
+
+### `.path()`
+
+Creates a proxy that builds DynamoDB expression paths as strings.
+
+```ts
+UserTable.path().email.toString()       // => 'email'
+UserTable.path().PK.toString()          // => 'PK'
+```
+
+## Advanced Features
+
+### Transforms
+
+Override how a field maps to its key segment using a transform function.
+
+```ts
+const Table = tableEntry<User>()({
+  PK: [
+    ['orgId', (id: string) => ({ tag: 'ORG', value: id })],
+    ['id', (id: string) => ({ tag: 'USER', value: id })],
+  ],
+  SK: ['role'],
+})
+
+Table.key('PK', { orgId: 'acme', id: '123' })
+// => 'ORG#acme#USER#123'
+```
+
+A transform returns either:
+- A `joinable` value (the field name uppercased becomes the tag)
+- `{ value }` (no tag segment emitted)
+- `{ tag, value }` (custom tag)
+
+### Discriminated Schemas
+
+When your table stores a union of entity types, use a discriminator to define per-variant key specs.
+
+```ts
+type Item =
+  | { kind: 'order'; orderId: string; userId: string }
+  | { kind: 'refund'; refundId: string; orderId: string }
+
+const ItemTable = tableEntry<Item>()({
+  PK: {
+    discriminator: 'kind',
+    spec: {
+      order: ['userId', 'orderId'],
+      refund: ['orderId', 'refundId'],
+    },
+  },
+  SK: ['kind'],
+})
+
+ItemTable.key('PK', { kind: 'order', userId: 'u1', orderId: 'o1' })
+// => 'USERID#u1#ORDERID#o1'
+
+ItemTable.key('PK', { kind: 'refund', orderId: 'o1', refundId: 'r1' })
+// => 'ORDERID#o1#REFUNDID#r1'
+```
+
+Set a discriminated spec value to `null` to produce `undefined` (useful for GSIs that don't apply to all variants).
+
+### Custom Separator
+
+```ts
+const Table = tableEntry<User>()(schema, '-')
+// Keys use '-' instead of '#': 'ORGID-acme-ID-123'
+```
+
+## Error Handling
+
+All runtime errors throw `RotoriseError` (exported), so you can distinguish library errors from your own.
+
+```ts
+import { RotoriseError } from 'rotorise'
+
+try {
+  Table.key('PK', { /* missing required attrs */ })
+} catch (e) {
+  if (e instanceof RotoriseError) { /* ... */ }
+}
+```
 
 ## Contributing
+
 Open an [issue](https://github.com/josher8a/Rotorise/issues) or a PR. We are open to any kind of contribution and feedback.
+
+## License
+
+[Apache-2.0](LICENSE)

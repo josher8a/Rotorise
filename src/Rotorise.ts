@@ -7,31 +7,53 @@ import type {
     Replace,
     SliceFromStart,
     ValueOf,
-    evaluate,
+    show,
+    ErrorMessage,
 } from './utils'
+
+// When a spec item has a transform function, use the transform's parameter type
+// instead of the entity's property type. This allows callers to pass only the
+// fields the transform actually needs (e.g. Pick<Obj, 'id'> instead of Obj).
+type TransformOverride<
+    Spec extends InputSpecShape,
+    K,
+    Fallback,
+    Matched = Extract<Spec[number], [K, (...args: any[]) => any, ...any[]]>,
+> = [Matched] extends [never]
+    ? Fallback
+    : // Contravariant inference: when the same key appears multiple times with
+      // different transforms (e.g. Pick<Obj,'id'> and Pick<Obj,'name'>),
+      // this intersects the parameter types rather than unioning them.
+      (
+          Matched extends [any, (x: infer P) => any, ...any[]]
+              ? (x: P) => void
+              : never
+      ) extends (x: infer I) => void
+      ? I
+      : Fallback
 
 export type CompositeKeyParamsImpl<
     Entity,
     InputSpec extends InputSpecShape,
     skip extends number = 1,
 > = Entity extends unknown
-    ? evaluate<
-          Pick<
-              Entity,
-              extractHeadOrPass<
+    ? show<
+          {
+              [K in extractHeadOrPass<
                   SliceFromStart<
                       InputSpec,
                       number extends skip ? 1 : skip
                   >[number]
               > &
-                  keyof Entity
-          > &
-              Partial<
-                  Pick<
-                      Entity,
-                      extractHeadOrPass<InputSpec[number]> & keyof Entity
-                  >
+                  keyof Entity]: TransformOverride<
+                  InputSpec,
+                  K,
+                  Entity[K]
               >
+          } & {
+              [K in extractHeadOrPass<InputSpec[number]> &
+                  keyof Entity]?: TransformOverride<InputSpec, K, Entity[K]>
+          }
       >
     : never
 
@@ -48,11 +70,13 @@ type CompositeKeyBuilderImpl<
     Deep extends number = number,
     isPartial extends boolean = false,
 > = Entity extends unknown
-    ? Join<
-          CompositeKeyRec<
-              Entity,
-              number extends Deep ? Spec : SliceFromStart<Spec, Deep>
-          >,
+    ? CompositeKeyStringBuilder<
+          Entity,
+          [Deep] extends [never]
+              ? Spec
+              : number extends Deep
+                ? Spec
+                : SliceFromStart<Spec, Deep>,
           Separator,
           boolean extends isPartial ? false : isPartial
       >
@@ -67,49 +91,23 @@ export type CompositeKeyBuilder<
 > = CompositeKeyBuilderImpl<Entity, Spec, Separator, Deep, isPartial>
 
 type joinable = string | number | bigint | boolean | null | undefined
-type joinablePair = [joinable, joinable]
 
-type Join<
-    Pairs,
-    Separator extends string,
-    KeepIntermediate extends boolean = false,
-    Acc extends string = '',
-    AllAcc extends string = never,
-> = Pairs extends [infer Head extends joinablePair, ...infer Tail]
-    ? Join<
-          Tail,
-          Separator,
-          KeepIntermediate,
-          Acc extends ''
-              ? [Head[0]] extends [never]
-                  ? `${Head[1]}`
-                  : `${Head[0]}${Separator}${Head[1]}`
-              : [Head[0]] extends [never]
-                ? `${Acc}${Separator}${Head[1]}`
-                : `${Acc}${Separator}${Head[0]}${Separator}${Head[1]}`,
-          KeepIntermediate extends true
-              ? AllAcc | (Acc extends '' ? never : Acc)
-              : never
-      >
-    : AllAcc | Acc
-
-type ExtractHelper<Key, Value> = Value extends joinable
-    ? [Key, Value]
-    : Value extends {
-            tag: infer Tag extends string
-            value: infer Value extends joinable
-        }
-      ? [Tag, Value]
-      : Value extends {
-              tag?: undefined
-              value: infer Value extends joinable
-          }
-        ? [never, Value]
-        : never
+type ExtractHelper<Key, Value> = Value extends object
+    ? Value extends {
+          tag: infer Tag extends string
+          value: infer Value extends joinable
+      }
+        ? [Tag, Value]
+        : Value extends {
+                value: infer Value extends joinable
+            }
+          ? [never, Value]
+          : never
+    : [Key, Value]
 
 type ExtractPair<Entity, Spec> = Spec extends [
     infer Key extends string,
-    // biome-ignore lint/suspicious/noExplicitAny: <explanation>
+    // biome-ignore lint/suspicious/noExplicitAny: required for generic transform inference
     (...key: any[]) => infer Value,
     ...unknown[],
 ]
@@ -118,19 +116,36 @@ type ExtractPair<Entity, Spec> = Spec extends [
       ? [Uppercase<Spec>, Entity[Spec] & joinable]
       : never
 
-type CompositeKeyRec<
+type CompositeKeyStringBuilder<
     Entity,
     Spec,
-    Acc extends joinablePair[] = [],
-    KeysCache extends string = keyof Entity & string,
+    Separator extends string,
+    KeepIntermediate extends boolean,
+    Acc extends string = '',
+    AllAcc extends string = never,
 > = Spec extends [infer Head, ...infer Tail]
-    ? CompositeKeyRec<
-          Entity,
-          Tail,
-          [...Acc, ExtractPair<Entity, Head>],
-          KeysCache
-      >
-    : Acc
+    ? ExtractPair<Entity, Head> extends [
+          infer Key extends joinable,
+          infer Value extends joinable,
+      ]
+        ? CompositeKeyStringBuilder<
+              Entity,
+              Tail,
+              Separator,
+              KeepIntermediate,
+              Acc extends ''
+                  ? [Key] extends [never]
+                      ? `${Value}`
+                      : `${Key}${Separator}${Value}`
+                  : [Key] extends [never]
+                    ? `${Acc}${Separator}${Value}`
+                    : `${Acc}${Separator}${Key}${Separator}${Value}`,
+              KeepIntermediate extends true
+                  ? AllAcc | (Acc extends '' ? never : Acc)
+                  : never
+          >
+        : never
+    : AllAcc | Acc
 
 type DiscriminatedSchemaShape = {
     discriminator: PropertyKey
@@ -140,8 +155,9 @@ type DiscriminatedSchemaShape = {
 }
 
 type InputSpecShape =
-    // biome-ignore lint/suspicious/noExplicitAny: ggg
+    // biome-ignore lint/suspicious/noExplicitAny: key type is erased at runtime, any is needed for structural matching
     ([PropertyKey, (key: any) => unknown, ...unknown[]] | PropertyKey)[]
+
 export type TransformShape =
     | {
           tag?: string
@@ -149,25 +165,50 @@ export type TransformShape =
       }
     | joinable
 
+type ComputeTableKeyType<
+    Entity,
+    Spec,
+    Separator extends string,
+    NullAs extends never | undefined = never,
+> = Spec extends InputSpecShape
+    ? CompositeKeyBuilderImpl<Entity, Spec, Separator, number, false>
+    : Spec extends keyof Entity
+      ? Replace<Entity[Spec], null, undefined>
+      : Spec extends null
+        ? NullAs
+        : never
+
 type TableEntryImpl<
     Entity,
     Schema,
     Separator extends string = '#',
 > = Entity extends unknown
-    ? {
-          [Key in keyof Schema]: Schema[Key] extends DiscriminatedSchemaShape
-              ? ProcessKey<
-                    Entity,
-                    ValueOf<
-                        Schema[Key]['spec'],
-                        ValueOf<Entity, Schema[Key]['discriminator']>
-                    >,
-                    Separator
-                >
-              : ProcessKey<Entity, Schema[Key], Separator>
-      } & Entity
+    ? show<
+          {
+              readonly [Key in keyof Schema]: Schema[Key] extends DiscriminatedSchemaShape
+                  ? ComputeTableKeyType<
+                        Entity,
+                        ValueOf<
+                            Schema[Key]['spec'],
+                            ValueOf<Entity, Schema[Key]['discriminator']>
+                        >,
+                        Separator
+                    >
+                  : Schema[Key] extends keyof Entity | InputSpecShape | null
+                    ? ComputeTableKeyType<Entity, Schema[Key], Separator>
+                    : ErrorMessage<'Invalid schema definition'>
+          } & Entity
+      >
     : never
 
+/**
+ * Represents a complete DynamoDB table entry, combining the original entity
+ * with its computed internal and global keys.
+ *
+ * @template Entity The base entity type.
+ * @template Schema The schema defining the table keys.
+ * @template Separator The string used to join composite key components (default: '#').
+ */
 export type TableEntry<
     Entity extends Record<string, unknown>,
     Schema extends Record<string, FullKeySpec<Entity>>,
@@ -218,6 +259,18 @@ type FullKeySpec<Entity> =
     | DiscriminatedSchema<Entity, MergeIntersectionObject<Entity>>
 
 type FullKeySpecShape = FullKeySpecSimpleShape | DiscriminatedSchemaShape
+
+export class RotoriseError extends Error {
+    constructor(message: string) {
+        super(message)
+        this.name = 'RotoriseError'
+    }
+}
+
+// Runtime implementation uses `as never` casts because the generic types are
+// too complex for TS to verify at the value level. Type correctness is enforced
+// by the type-level types (CompositeKeyStringBuilder, TableEntryImpl, etc.) and
+// validated by the attest-based test suite.
 
 const chainableNoOpProxy: unknown = new Proxy(() => chainableNoOpProxy, {
     get: () => chainableNoOpProxy,
@@ -280,7 +333,7 @@ const key =
         const case_ = schema[key]
 
         if (case_ === undefined) {
-            throw new Error(`Key ${key.toString()} not found in schema`)
+            throw new RotoriseError(`Key ${key.toString()} not found in schema`)
         }
         let structure: InputSpec<MergeIntersectionObject<Entity>>[]
 
@@ -290,13 +343,13 @@ const key =
             const discriminator =
                 attributes[case_.discriminator as keyof Attributes]
             if (discriminator === undefined) {
-                throw new Error(
+                throw new RotoriseError(
                     `Discriminator ${case_.discriminator.toString()} not found in ${JSON.stringify(attributes)}`,
                 )
             }
             const val = case_.spec[discriminator as keyof typeof case_.spec]
             if (val === undefined) {
-                throw new Error(
+                throw new RotoriseError(
                     `Discriminator value ${discriminator?.toString()} not found in ${JSON.stringify(attributes)}`,
                 )
             }
@@ -319,7 +372,7 @@ const key =
         const fullLength = structure.length
 
         if (config?.depth !== undefined) {
-            structure = structure.slice(0, config.depth) as never
+            structure = structure.slice(0, config.depth) as typeof structure
         }
         const composite: joinable[] = []
 
@@ -346,12 +399,14 @@ const key =
             } else if (config?.allowPartial) {
                 break
             } else {
-                throw new Error(
+                throw new RotoriseError(
                     `buildCompositeKey: Attribute ${key.toString()} not found in ${JSON.stringify(attributes)}`,
                 )
             }
         }
 
+        // Each spec element produces 2 segments (KEY, value). If fewer segments
+        // were emitted than expected (partial key), append a trailing separator.
         if (config?.enforceBoundary && fullLength * 2 > composite.length) {
             composite.push('')
         }
@@ -386,14 +441,14 @@ const toEntry =
         ? TableEntryImpl<E, Schema, Separator>
         : never => {
         const entry = { ...item }
+        const buildKey = key<Entity>()(schema, separator)
 
         for (const key_ in schema) {
-            const val = key<Entity>()(schema, separator)(key_, item)
+            const val = buildKey(key_, item)
             if (val !== undefined) {
                 entry[key_] = val satisfies string as never
             }
         }
-        // console.log({ entry })
         return entry as never
     }
 
@@ -413,7 +468,6 @@ const fromEntry =
         for (const key_ in schema) {
             delete item[key_]
         }
-        // console.log({ item })
         return item as never
     }
 
@@ -431,7 +485,9 @@ type ProcessSpecType<
                 ? 1
                 : Extract<Config['depth'], number>
         >
-      : never
+      : Spec extends null | undefined
+        ? unknown
+        : ErrorMessage<'Invalid Spec: Expected string, InputSpecShape, null or undefined'>
 
 // Cache commonly used conditional types
 type SpecConfig<Spec> = Spec extends string ? never : SpecConfigShape
@@ -443,7 +499,13 @@ type SpecConfigShape = {
 }
 
 // Pre-compute discriminated variant types
-type VariantType<Entity, K extends PropertyKey, V extends PropertyKey> = [
+type ExtractVariant<Entity, K extends PropertyKey, V extends PropertyKey> = [
+    Entity,
+] extends [never]
+    ? never
+    : Extract<Entity, { [k in K]: V }>
+
+type TagVariant<Entity, K extends PropertyKey, V extends PropertyKey> = [
     Entity,
 ] extends [never]
     ? { [k in K]: V }
@@ -456,34 +518,31 @@ type ProcessVariant<
     V extends PropertyKey,
     Spec extends DiscriminatedSchemaShape,
     Config extends SpecConfigShape,
-> = VariantType<
-    ProcessSpecType<
-        VariantType<Entity, K, V>,
-        Spec['spec'][V & keyof Spec['spec']],
-        Config
-    >,
+    VariantSpec = Spec['spec'][V & keyof Spec['spec']],
+> = TagVariant<
+    VariantSpec extends null | undefined
+        ? unknown
+        : ProcessSpecType<ExtractVariant<Entity, K, V>, VariantSpec, Config>,
     K,
     V
 >
 
 // Optimized attribute processing
-type OptimizedAttributes<
-    Entity,
-    Spec,
-    Config extends SpecConfigShape,
-> = Spec extends DiscriminatedSchemaShape
-    ? {
-          [K in Spec['discriminator']]: {
-              [V in keyof Spec['spec']]: ProcessVariant<
-                  Entity,
-                  K,
-                  V,
-                  Spec,
-                  Config
-              >
-          }[keyof Spec['spec']]
-      }[Spec['discriminator']]
-    : ProcessSpecType<Entity, Spec, Config>
+type OptimizedAttributes<Entity, Spec, Config extends SpecConfigShape> = show<
+    Spec extends DiscriminatedSchemaShape
+        ? {
+              [K in Spec['discriminator']]: {
+                  [V in keyof Spec['spec']]: ProcessVariant<
+                      Entity,
+                      K,
+                      V,
+                      Spec,
+                      Config
+                  >
+              }[keyof Spec['spec']]
+          }[Spec['discriminator']]
+        : ProcessSpecType<Entity, Spec, Config>
+>
 
 type ProcessKey<
     Entity,
@@ -504,42 +563,72 @@ type ProcessKey<
               Exclude<Config['depth'], undefined>,
               Exclude<Config['allowPartial'], undefined>
           >
-        : Spec extends null
+        : Spec extends null | undefined
           ? NullAs
-          : never
+          : ErrorMessage<'Invalid Spec'>
 
-type OptimizedBuildedKey<
+type OptimizedBuiltKey<
     Entity,
     Spec,
     Separator extends string,
     Config extends SpecConfigShape,
     Attributes,
 > = Entity extends unknown
-    ? Spec extends DiscriminatedSchemaShape
-        ? ProcessKey<
-              Entity,
-              ValueOf<Spec['spec'], ValueOf<Entity, Spec['discriminator']>>,
-              Separator,
-              undefined,
-              Config,
-              Attributes
-          >
-        : ProcessKey<Entity, Spec, Separator, undefined, Config, Attributes>
+    ? show<
+          Spec extends DiscriminatedSchemaShape
+              ? ProcessKey<
+                    Entity,
+                    ValueOf<
+                        Spec['spec'],
+                        ValueOf<Entity, Spec['discriminator']>
+                    >,
+                    Separator,
+                    undefined,
+                    Config,
+                    Attributes
+                >
+              : ProcessKey<
+                    Entity,
+                    Spec,
+                    Separator,
+                    undefined,
+                    Config,
+                    Attributes
+                >
+      >
     : never
 
 type TableEntryDefinition<Entity, Schema, Separator extends string> = {
-    toEntry: <const ExactEntity extends Exact<Entity, ExactEntity>>(
-        item: ExactEntity,
+    /**
+     * Converts a raw entity into a complete table entry with all keys computed.
+     * Use this when preparing items for insertion into DynamoDB.
+     */
+    toEntry: <const ExactEntity>(
+        item: Exact<Entity, ExactEntity>,
     ) => TableEntryImpl<ExactEntity, Schema, Separator>
+
+    /**
+     * Extracts the raw entity from a table entry by removing all computed keys.
+     * Use this when processing items retrieved from DynamoDB.
+     */
     fromEntry: <const Entry extends TableEntryImpl<Entity, Schema, Separator>>(
         entry: Entry,
     ) => DistributiveOmit<Entry, keyof Schema>
+
+    /**
+     * Generates a specific key for the given entity attributes.
+     * Supports partial keys and depth limiting for query operations.
+     *
+     * @param key The name of the key to generate (e.g., 'PK', 'GSIPK').
+     * @param attributes the object containing the values needed to build the key.
+     * @param config Optional configuration for partial keys or depth limiting.
+     */
     key: <
         const Key extends keyof Schema,
         const Config extends SpecConfig<Spec>,
         const Attributes extends OptimizedAttributes<Entity, Spec, Config_>,
         Spec = Schema[Key],
-        Config_ extends SpecConfigShape = [SpecConfigShape] extends [Config] // exclude undefined param
+        Config_ extends SpecConfigShape = [SpecConfigShape] extends [Config]
             ? {
                   depth?: undefined
                   allowPartial?: undefined
@@ -550,11 +639,38 @@ type TableEntryDefinition<Entity, Schema, Separator extends string> = {
         key: Key,
         attributes: Attributes,
         config?: Config,
-    ) => OptimizedBuildedKey<Attributes, Spec, Separator, Config_, Attributes>
+    ) => OptimizedBuiltKey<Attributes, Spec, Separator, Config_, Attributes>
+
+    /**
+     * A zero-runtime inference helper. Use this with `typeof` to get the
+     * total type of a table entry.
+     */
     infer: TableEntryImpl<Entity, Schema, Separator>
+
+    /**
+     * Creates a proxy to generate property paths as strings.
+     * Useful for building UpdateExpressions or ProjectionExpressions.
+     *
+     * @example
+     * table.path().data.nested.property.toString() // returns "data.nested.property"
+     */
     path: () => TableEntryImpl<Entity, Schema, Separator>
 }
 
+/**
+ * Entry point for defining a DynamoDB table schema with Rotorise.
+ *
+ * @template Entity The base entity type that this table represents.
+ * @returns A builder function that accepts the schema and an optional separator.
+ *
+ * Note: the double-call `<Entity>()(schema)` is required for partial type parameter inference.
+ *
+ * @example
+ * const userTable = tableEntry<User>()({
+ *   PK: ["orgId", "id"],
+ *   SK: "role"
+ * })
+ */
 export const tableEntry =
     <const Entity extends Record<string, unknown>>() =>
     <
@@ -562,12 +678,18 @@ export const tableEntry =
         Separator extends string = '#',
     >(
         schema: Schema,
-        separator: Separator = '#' as Separator,
+        ...[separator]: [Separator] extends ['']
+            ? [ErrorMessage<'Separator must not be an empty string'>]
+            : [separator?: Separator]
     ): TableEntryDefinition<Entity, Schema, Separator> => {
+        const sep = separator ?? ('#' as Separator)
+        if (sep === '' || typeof sep !== 'string') {
+            throw new RotoriseError('Separator must not be an empty string')
+        }
         return {
-            toEntry: toEntry()(schema as never, separator) as never,
+            toEntry: toEntry()(schema as never, sep) as never,
             fromEntry: fromEntry()(schema as never) as never,
-            key: key()(schema as never, separator) as never,
+            key: key()(schema as never, sep) as never,
             infer: chainableNoOpProxy as never,
             path: () => createPathProxy() as never,
         }
