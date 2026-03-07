@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.5
+
+### Fixed
+
+- **3-tuple defaults accept narrowed transform parameter types** — `[key, transform, default]` specs for optional properties now accept defaults matching the transform's parameter type (e.g. `Pick<Inner, 'id'>`) instead of requiring the full entity property type. Invalid defaults like `{}` are rejected at compile time.
+
 ## 0.3.0
 
 ### Breaking Changes

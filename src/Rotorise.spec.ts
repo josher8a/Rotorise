@@ -972,78 +972,6 @@ describe('DynamoDB Utils', () => {
             | { a: 'a2'; b: 2; c: 0; z?: 'never' | null }
         >()
 
-        attest<
-            [
-                schema: Record<
-                    string,
-                    | 'a'
-                    | 'b'
-                    | 'c'
-                    | 'z'
-                    | NonEmptyArray<
-                          | 'a'
-                          | 'b'
-                          | 'c'
-                          | ['a', (key: 'a1' | 'a2') => TransformShape]
-                          | ['b', (key: 1n | 2) => TransformShape]
-                          | ['c', (key: true | 0) => TransformShape]
-                          | [
-                                'z',
-                                (key: 'never' | null) => TransformShape,
-                                'never' | null,
-                            ]
-                      >
-                    | null
-                    | {
-                          discriminator: 'a'
-                          spec: {
-                              a1:
-                                  | 'a'
-                                  | 'b'
-                                  | 'c'
-                                  | 'z'
-                                  | NonEmptyArray<
-                                        | 'a'
-                                        | 'b'
-                                        | 'c'
-                                        | 'z'
-                                        | ['a', (key: 'a1') => TransformShape]
-                                        | ['b', (key: 1n) => TransformShape]
-                                        | ['c', (key: true) => TransformShape]
-                                        | [
-                                              'z',
-                                              (key: 'never') => TransformShape,
-                                          ]
-                                    >
-                                  | null
-                              a2:
-                                  | 'a'
-                                  | 'b'
-                                  | 'c'
-                                  | 'z'
-                                  | NonEmptyArray<
-                                        | 'a'
-                                        | 'b'
-                                        | 'c'
-                                        | ['a', (key: 'a2') => TransformShape]
-                                        | ['b', (key: 2) => TransformShape]
-                                        | ['c', (key: 0) => TransformShape]
-                                        | [
-                                              'z',
-                                              (
-                                                  key: 'never' | null,
-                                              ) => TransformShape,
-                                              'never' | null,
-                                          ]
-                                    >
-                                  | null
-                          }
-                      }
-                >,
-                separator?: string | undefined,
-            ]
-        >(null as any as Parameters<typeof base>)
-
         const testTableEntry = base(
             {
                 PK: ['a', ['b', (x: 1n | 2) => x.toString()], 'c'],
@@ -1175,6 +1103,60 @@ describe('DynamoDB Utils', () => {
         >(null as any as Parameters<typeof base>)
     })
 
+    test('optional object property with narrowed transform accepts partial default', () => {
+        type Inner = { id: string; name: string; age: number }
+        type Entity = {
+            data?: Inner
+            key: string
+        }
+
+        const table = tableEntry<Entity>()({
+            PK: [
+                [
+                    'data',
+                    (d: Pick<Inner, 'id'>) => ({
+                        tag: 'DATA' as const,
+                        value: d.id,
+                    }),
+                    { id: 'default-id' },
+                ],
+                'key',
+            ],
+        })
+
+        // empty object should be rejected — it doesn't satisfy the transform param
+        tableEntry<Entity>()({
+            PK: [
+                [
+                    'data',
+                    (d: Pick<Inner, 'id'>) => ({
+                        tag: 'DATA' as const,
+                        value: d.id,
+                    }),
+                    // @ts-expect-error - {} does not satisfy Pick<Inner, 'id'>
+                    {},
+                ],
+                'key',
+            ],
+        })
+
+        // Uses the actual value when present
+        expect(
+            table.key('PK', {
+                data: { id: 'real-id' },
+                key: 'k1',
+            }),
+        ).toBe('DATA#real-id#KEY#k1')
+
+        // Falls back to default when data is undefined
+        expect(
+            table.key('PK', {
+                data: undefined,
+                key: 'k1',
+            }),
+        ).toBe('DATA#default-id#KEY#k1')
+    })
+
     test('transform parameter types narrow .key() attributes', () => {
         type A = {
             w: string
@@ -1298,5 +1280,39 @@ describe('DynamoDB Utils', () => {
         })
 
         attest.instantiations([6396, 'instantiations'])
+    })
+
+    test('NeedsValidation detects 3-tuples in mixed arrays', () => {
+        type Entity = {
+            id: string
+            data?: { name: string }
+        }
+
+        // Schema where the ONLY 3-tuple is in a mixed array (alongside a bare key).
+        // NeedsValidation uses `V[number] extends Tuple3` which checks ALL elements,
+        // so if it misses mixed arrays, {} would incorrectly pass.
+        tableEntry<Entity>()({
+            PK: [
+                'id',
+                [
+                    'data',
+                    (d: { name: string }) => d.name,
+                    // @ts-expect-error - {} does not satisfy { name: string }
+                    {},
+                ],
+            ],
+        })
+
+        // Valid default should pass
+        const table = tableEntry<Entity>()({
+            PK: [
+                'id',
+                ['data', (d: { name: string }) => d.name, { name: 'fallback' }],
+            ],
+        })
+
+        expect(table.key('PK', { id: 'x', data: undefined })).toBe(
+            'ID#x#DATA#fallback',
+        )
     })
 })

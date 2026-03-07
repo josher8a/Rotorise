@@ -211,17 +211,65 @@ export type TableEntry<
     Separator extends string = '#',
 > = TableEntryImpl<Entity, Schema, Separator>
 
+// Partial<T> for objects so narrowed transform defaults pass the InputSpec constraint.
+type DefaultOf<T> = T extends Record<string, unknown> ? Partial<T> : T
+
 type InputSpec<E> = {
     [key in keyof E]:
         | (undefined extends E[key]
               ? [
                     key,
                     (key: Exclude<E[key], undefined>) => TransformShape,
-                    Exclude<E[key], undefined>,
+                    DefaultOf<Exclude<E[key], undefined>>,
                 ]
-              : [key, (key: Exclude<E[key], undefined>) => TransformShape])
+              : [key, (key: E[key]) => TransformShape])
         | (undefined extends E[key] ? never : null extends E[key] ? never : key)
 }[keyof E]
+
+// --- 3-tuple default validation ---
+// InputSpec uses DefaultOf so narrowed defaults pass the constraint.
+// ValidateSchema mirrors the schema replacing each 3-tuple default slot with
+// the transform's param type. The `Schema & ValidateSchema<Schema>` intersection
+// then rejects defaults that don't match the transform param (e.g. `{}`).
+
+// biome-ignore lint/suspicious/noExplicitAny: structural matching
+type ValidateInputSpec<T> = {
+    [I in keyof T]: T[I] extends readonly [
+        unknown,
+        (arg: infer P) => any,
+        unknown,
+    ]
+        ? [T[I][0], T[I][1], P]
+        : T[I]
+}
+
+type Tuple3 = { length: 3 }
+
+// True if any spec entry in V is a 3-tuple. Recurses into discriminated specs.
+type NeedsValidation<V> = V extends readonly unknown[]
+    ? Extract<V[number], Tuple3>
+    : V extends { spec: infer S }
+      ? NeedsValidation<S[keyof S]>
+      : never
+
+// Short-circuits to `unknown` when schema has no 3-tuples (zero overhead).
+type ValidateSchema<Schema> = [NeedsValidation<Schema[keyof Schema]>] extends [
+    never,
+]
+    ? unknown
+    : {
+          [K in keyof Schema]: Schema[K] extends {
+              discriminator: unknown
+              spec: infer Spec
+          }
+              ? {
+                    discriminator: Schema[K]['discriminator']
+                    spec: {
+                        [SV in keyof Spec]: ValidateInputSpec<Spec[SV]>
+                    }
+                }
+              : ValidateInputSpec<Schema[K]>
+      }
 
 type extractHeadOrPass<T> = T extends readonly unknown[] ? T[0] : T
 
@@ -673,7 +721,7 @@ export const tableEntry =
         const Schema extends Record<string, FullKeySpec<Entity>>,
         Separator extends string = '#',
     >(
-        schema: Schema,
+        schema: Schema & ValidateSchema<Schema>,
         ...[separator]: [Separator] extends ['']
             ? [ErrorMessage<'Separator must not be an empty string'>]
             : [separator?: Separator]
