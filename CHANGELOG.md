@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.6 — 2026-07-31
+
+### Fixed
+
+- **`sideEffects: false` declared in `package.json`** — the package was missing the metadata bundlers need to prove the module is side-effect free, so webpack/Rollup retained it even when no export was used. Consumers importing only `RotoriseError` (or nothing at all) can now drop the module entirely.
+
 ## 0.3.5 — 2026-03-07
 
 ### Fixed
